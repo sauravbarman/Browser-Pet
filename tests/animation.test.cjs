@@ -297,6 +297,7 @@ for (const reduced of [false, true]) {
 test('MV3 permissions and all local manifest resources remain valid', () => {
   const manifest = JSON.parse(read('manifest.json'));
   assert.equal(manifest.manifest_version, 3);
+  assert.match(manifest.version, /^\d+(?:\.\d+){0,3}$/);
   assert.deepEqual(manifest.permissions, ['storage']);
   for (const file of [...manifest.content_scripts.flatMap(c => c.js),
     ...manifest.web_accessible_resources.flatMap(r => r.resources), manifest.action.default_popup]) {
