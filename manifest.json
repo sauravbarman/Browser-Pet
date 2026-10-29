@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Little Lovebug",
+  "version": "1.1.0",
+  "description": "A tiny white kitten carrying a little extra love through your day.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Little Lovebug"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "messages.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "pet.svg",
+        "pet.css",
+        "pet-sprites.png"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
+    }
+  ]
+}

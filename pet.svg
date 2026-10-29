@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+ <defs><linearGradient id="fur" x1="65" y1="35" x2="100" y2="145" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#f0edf7"/></linearGradient><radialGradient id="blush"><stop stop-color="#f7b6ce" stop-opacity=".85"/><stop offset="1" stop-color="#f7b6ce" stop-opacity="0"/></radialGradient></defs>
+ <ellipse cx="80" cy="147" rx="47" ry="6" fill="#aa8aa9" opacity=".17"/>
+ <g class="tail"><path d="M107 130C144 141 149 108 135 101C125 96 120 109 129 113C133 122 115 118 107 117" fill="url(#fur)" stroke="#d8cede" stroke-width="2.3" stroke-linecap="round"/></g>
+ <g class="body"><path d="M49 98C39 112 39 135 49 142C59 147 100 147 111 140C121 131 114 108 105 98" fill="url(#fur)" stroke="#d8cede" stroke-width="2"/>
+ <path d="M65 112C60 123 61 135 66 139M94 112C99 125 97 136 93 140" stroke="#ddd3e1" stroke-width="2" stroke-linecap="round"/>
+ <g class="paw left-paw"><ellipse cx="57" cy="140" rx="15" ry="8" fill="#fff" stroke="#d8cede" stroke-width="1.7"/><path d="M53 141v3m6-3v3" stroke="#e4d8e5" stroke-linecap="round"/></g>
+ <g class="paw right-paw"><ellipse cx="101" cy="140" rx="15" ry="8" fill="#fff" stroke="#d8cede" stroke-width="1.7"/><path d="M97 141v3m6-3v3" stroke="#e4d8e5" stroke-linecap="round"/></g></g>
+ <g class="head"><g class="ear ear-left"><path d="M39 66C29 50 29 24 36 19C41 16 61 34 66 46" fill="url(#fur)" stroke="#d8cede" stroke-width="2"/><path d="M39 32Q37 48 46 56L56 45Z" fill="#f5b8cf"/></g><g class="ear ear-right"><path d="M96 44C104 31 121 17 127 22C134 28 130 54 121 66" fill="url(#fur)" stroke="#d8cede" stroke-width="2"/><path d="M121 33L105 46L118 56Q126 43 121 33" fill="#f5b8cf"/></g>
+ <path d="M39 57L33 61L36 68L27 73L32 80L28 86L35 90C34 110 55 121 80 121C107 121 127 110 126 91L133 86L129 79L134 73L125 68L127 61L120 57C111 42 94 40 82 43L76 37L71 43L65 39L62 45C51 44 43 50 39 57Z" fill="url(#fur)" stroke="#d8cede" stroke-width="2" stroke-linejoin="round"/>
+ <ellipse cx="47" cy="94" rx="16" ry="10" fill="url(#blush)"/><ellipse cx="113" cy="94" rx="16" ry="10" fill="url(#blush)"/>
+ <g class="eyes"><g class="eye"><ellipse cx="57" cy="79" rx="12" ry="15" fill="#524458"/><ellipse cx="58" cy="84" rx="8" ry="8" fill="#82728d"/><ellipse cx="53" cy="73" rx="4.5" ry="5" fill="white"/><circle cx="62" cy="82" r="2.3" fill="white"/></g><g class="eye"><ellipse cx="103" cy="79" rx="12" ry="15" fill="#524458"/><ellipse cx="102" cy="84" rx="8" ry="8" fill="#82728d"/><ellipse cx="99" cy="73" rx="4.5" ry="5" fill="white"/><circle cx="108" cy="82" r="2.3" fill="white"/></g></g>
+ <g class="closed-eyes" stroke="#69556d" stroke-width="3" stroke-linecap="round"><path d="M46 81Q57 90 68 81M92 81Q103 90 114 81"/></g>
+ <path d="M74 93Q80 90 86 93L80 99Z" fill="#e99fba"/><path d="M80 99v3m0 0q-6 7-12 0m12 0q6 7 12 0" stroke="#9b788f" stroke-width="1.8" stroke-linecap="round"/>
+ <path d="M42 99l-15-2m16 8l-14 3m89-9l15-2m-16 8l14 3" stroke="#d8cede" stroke-width="1.5" stroke-linecap="round"/></g>
+ <g class="sleep-z" fill="#a990be" font-family="sans-serif" font-weight="bold"><text x="124" y="42" font-size="16">z</text><text x="138" y="25" font-size="12">z</text></g>
+</svg>

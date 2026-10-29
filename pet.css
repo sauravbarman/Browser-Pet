@@ -1,0 +1,69 @@
+:host{all:initial!important;position:fixed!important;inset:0!important;z-index:2147483647!important;pointer-events:none!important;color-scheme:light!important;font-family:ui-rounded,"Segoe UI",sans-serif!important}*{box-sizing:border-box}.anchor{position:absolute;width:120px;height:120px;pointer-events:none}.kitten{width:120px;height:120px;padding:0;border:0;background:transparent;cursor:grab;pointer-events:auto;touch-action:none;display:block}.kitten:active{cursor:grabbing}.kitten:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #b996d1;outline-offset:3px;border-radius:16px}svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 3px 3px #72536c12)}.tail{transform-origin:110px 125px;animation:swish 5s ease-in-out infinite}.body{transform-origin:80px 145px;animation:breathe 4s ease-in-out infinite}.head{transform-origin:80px 110px}.ear-left{transform-origin:54px 55px}.ear-right{transform-origin:108px 55px}.twitch .ear-left{animation:twitch .5s ease-in-out}.look .eyes{transform:translateX(3px)}.look-left .eyes{transform:translateX(-3px)}.eye{transform-box:fill-box;transform-origin:center}.blink .eye{transform:scaleY(.08)}.closed-eyes,.sleep-z{display:none}.sleeping .eyes,.happy .eyes{display:none}.sleeping .closed-eyes,.happy .closed-eyes,.sleeping .sleep-z{display:block}.sleeping .sleep-z{animation:float 3s ease-in-out infinite}.sleeping .tail{animation-duration:12s}.stretch .body{animation:stretch 1.8s ease-in-out}.walking .paw{transform-box:fill-box;transform-origin:center;animation:step .32s ease-in-out infinite alternate}.walking .right-paw{animation-delay:-.32s}.walking .head{animation:sway .64s ease-in-out infinite alternate}.paused *{animation-play-state:paused!important}.panel,.bubble{position:absolute;pointer-events:auto;background:#fff9fc;color:#614c63;border:1px solid #ebdce9;border-radius:20px;box-shadow:0 8px 32px #51304720;font-size:13px;line-height:1.5}.panel{width:224px;padding:15px}.panel[hidden],.bubble[hidden],.rename[hidden]{display:none}.title{font-size:17px;font-weight:700;overflow-wrap:anywhere;margin-bottom:5px}.sub{color:#94798e;font-size:11px;letter-spacing:.07em;text-transform:uppercase}.meter{height:6px;background:#f1e6ef;border-radius:9px;margin:7px 0 12px;overflow:hidden}.meter span{display:block;height:100%;background:#e9a8c4;border-radius:9px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}button,input{font:inherit} .actions button,.rename button{border:0;border-radius:11px;padding:8px;background:#f5eaf3;color:#6d526e;cursor:pointer}.actions button:hover{background:#eddaeb}.rename{margin-top:10px;display:flex;gap:5px}.rename input{min-width:0;width:100%;border:1px solid #dfcddd;border-radius:8px;padding:6px;color:#614c63;background:white}.bubble{width:220px;padding:12px 15px;pointer-events:none;overflow-wrap:anywhere}.reaction{position:absolute;top:0;left:45px;color:#de8eb0;font-size:26px;pointer-events:none;animation:float 2s ease-out infinite}.reaction:empty{display:none}@keyframes breathe{50%{transform:scaleY(1.025)}}@keyframes swish{50%{transform:rotate(-12deg)}}@keyframes twitch{50%{transform:rotate(-9deg)}}@keyframes stretch{50%{transform:scale(1.09,.86)}}@keyframes step{to{transform:translateY(-4px)}}@keyframes sway{to{transform:rotate(3deg)}}@keyframes float{50%{transform:translateY(-10px);opacity:.6}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* Animation fixes: these rules live beside the inline SVG inside the same Shadow DOM. */
+.kitten{position:relative}
+.tail,.body,.head,.ear{transform-box:view-box}
+.tail{animation:swish 2.8s ease-in-out infinite}
+.body{animation:breathe 2.8s ease-in-out infinite}
+.head{animation:head-breathe 2.8s ease-in-out infinite}
+.eye{animation:blink-auto 5.3s infinite}
+.ear-left{animation:ear-idle 8s ease-in-out infinite}
+.ear-right{animation:ear-idle 11s ease-in-out 2s infinite}
+.blink .eye{animation:none;transform:scaleY(.08)}
+.sleeping .head{animation:head-breathe 4s ease-in-out infinite}
+.sleeping .ear{animation:none}
+.petting .eyes,.feeding .eyes{display:none}
+.petting .closed-eyes,.feeding .closed-eyes{display:block}
+.petting .head{animation:nuzzle .65s ease-in-out infinite alternate}
+.petting .tail{animation:swish .55s ease-in-out infinite}
+.petting .left-paw{transform-box:fill-box;transform-origin:center;animation:step .4s ease-in-out infinite alternate}
+.feeding .head{animation:munch .38s ease-in-out infinite}
+.feeding .body{animation:breathe 1.4s ease-in-out infinite}
+.waking .head{animation:nuzzle .5s ease-in-out 3 alternate}
+.food{display:none;position:absolute;left:39px;bottom:4px;width:46px;height:15px;border-radius:4px 4px 18px 18px;border:2px solid #d995b9;background:#f3bdd5;color:#906443;font-size:13px;line-height:8px;box-shadow:0 2px 2px #77557720;pointer-events:none}
+.feeding .food{display:block;animation:food-nibble .5s ease-in-out infinite alternate}
+.reaction{top:30px;left:24px;width:80px;height:60px;z-index:3;font-size:26px;animation:none}
+.particle{position:absolute;left:0;top:0;animation:heart-rise 1.5s ease-out infinite;opacity:0;text-shadow:0 1px 3px white}
+.particle:nth-child(2){left:27px;animation-delay:.3s;font-size:21px}
+.particle:nth-child(3){left:53px;animation-delay:.6s;font-size:17px}
+.sleep-z text{animation:dream 2.6s ease-in-out infinite}
+.sleep-z text:nth-child(2){animation-delay:.7s}
+@keyframes breathe{50%{transform:translateY(-2px) scaleY(1.055)}}
+@keyframes head-breathe{50%{transform:translateY(-2px) rotate(1deg)}}
+@keyframes swish{0%,100%{transform:rotate(7deg)}50%{transform:rotate(-23deg)}}
+@keyframes blink-auto{0%,40%,44%,72%,76%,100%{transform:scaleY(1)}42%,74%{transform:scaleY(.06)}}
+@keyframes ear-idle{0%,82%,94%,100%{transform:rotate(0)}86%,91%{transform:rotate(-13deg)}}
+@keyframes nuzzle{from{transform:rotate(-7deg) translateY(-2px)}to{transform:rotate(7deg) translateY(-5px)}}
+@keyframes munch{0%,100%{transform:translateY(1px) rotate(-2deg)}50%{transform:translateY(6px) rotate(2deg)}}
+@keyframes food-nibble{to{transform:translateY(-2px) scaleX(.94)}}
+@keyframes heart-rise{0%{opacity:0;transform:translateY(12px) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translateY(-43px) scale(1.15)}}
+@keyframes dream{50%{opacity:.35;transform:translateY(-5px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.particle{opacity:1}.particle:nth-child(2){top:12px}.particle:nth-child(3){top:3px}}
+
+/* Pixel-art atlas: 4 columns x 5 rows of 192px transparent cells.
+   Rows: sitting, blinking, walking right, sleeping, petting. */
+.anchor,.kitten{width:192px;height:192px}
+.sprite{display:block;width:192px;height:192px;background-repeat:no-repeat;background-size:768px 960px;image-rendering:pixelated;pointer-events:none;animation:sprite-idle 5.4s step-end infinite;transform-origin:50% 95%}
+.blink .sprite{background-position-y:-192px;animation:sprite-frames .64s steps(4) infinite}
+.walking .sprite{background-position-y:-384px;animation:sprite-frames .56s steps(4) infinite}
+.walking.facing-left .sprite{transform:scaleX(-1)}
+.sleeping .sprite{background-position-y:-576px;animation:sprite-frames 2.8s steps(4) infinite}
+.petting .sprite{background-position-y:-768px;animation:sprite-frames .9s steps(4) infinite}
+.feeding .sprite{background-position-y:-768px;animation:sprite-frames .8s steps(4) infinite,sprite-munch .4s ease-in-out infinite}
+.waking .sprite{animation:sprite-idle 5.4s step-end infinite}
+.sprite-z{display:none;position:absolute;right:7px;top:60px;color:#a787b7;font:bold 22px ui-rounded,sans-serif;pointer-events:none}
+.sleeping .sprite-z{display:block;animation:float 2s ease-in-out infinite}
+.food{left:73px;bottom:0}
+.reaction{left:50px;top:50px}
+@keyframes sprite-frames{from{background-position-x:0}to{background-position-x:-768px}}
+@keyframes sprite-idle{0%,100%{background-position:0 0}18%{background-position:-192px 0}36%{background-position:-384px 0}54%{background-position:-576px 0}76%{background-position:0 -192px}79%{background-position:-192px -192px}81%{background-position:-384px -192px}83%{background-position:-576px -192px}85%{background-position:0 0}}
+@keyframes sprite-munch{50%{transform:translateY(4px) rotate(2deg)}}
+@media(prefers-reduced-motion:reduce){.sprite{animation:none!important;background-position:0 0}.sleeping .sprite{background-position:0 -576px}.petting .sprite,.feeding .sprite{background-position:0 -768px}.sprite-z{animation:none!important}}
+.look .sprite{transform:translateX(2px) rotate(2deg)}
+.look-left .sprite{transform:translateX(-2px) rotate(-2deg)}
+.stretch .sprite{animation:sprite-stretch 1.8s ease-in-out}
+.twitch .sprite{animation:sprite-idle 5.4s step-end infinite,sprite-twitch .5s ease-in-out}
+@keyframes sprite-stretch{50%{transform:scale(1.06,.92)}}
+@keyframes sprite-twitch{50%{transform:rotate(-2deg)}}
+.paused .sprite,.paused .sprite-z,.paused .particle{animation-play-state:paused!important}
+@media(prefers-reduced-motion:reduce){.look .sprite,.look-left .sprite{transform:none}}

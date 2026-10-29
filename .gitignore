@@ -1,0 +1,33 @@
+# Local attachment cache and editor/session files
+/.codex-remote-attachments/
+/.codex/
+/.local-upload-prep/
+/.vscode/
+/.idea/
+
+# Temporary files, build output, and dependencies (not needed by this extension)
+/tmp/
+/temp/
+/node_modules/
+/dist/
+/coverage/
+*.log
+*.tmp
+*.bak
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Credentials and local environment settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Earlier unused design references; keep the chosen reference and runtime sprites
+/Kawaii Pixel Cat Character Sheet.png
+/Reference.jpg
