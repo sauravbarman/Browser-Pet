@@ -42,6 +42,16 @@ Settings are shared across pages through Chrome's local extension storage. Sleep
 9. Use Tab to reach the kitten, press Enter to open its menu, and tab through the actions. Escape closes the menu.
 10. On `chrome://extensions`, look for any **Errors** button under Little Lovebug. If present, open it and record the error text.
 
+## Run the Node tests
+
+From the repository root, run the existing test suite with Node's built-in test runner:
+
+```text
+node --test tests/animation.test.cjs
+```
+
+No package installation is required. The browser scenarios use Chrome, Edge, or Chromium when one is available; set `LOVEBUG_TEST_BROWSER` to the full path of a browser executable if it is not detected automatically.
+
 ## After editing files
 
 1. Save your changes.
@@ -124,15 +134,9 @@ Stretch, twitch, and eating transforms now use a small wrapper around the sprite
 
 Walking updates the in-memory normalized position on every frame. Interruptions cancel the pending frame and persist the last visible location. Dragging, opening the menu, Pet/Feed, Sleep/Hide, a tab becoming hidden, a reduced-motion change, and resizing all stop a walk without restoring its old starting point. A resize clamps the visible position inside the new viewport. Position storage includes an anonymous per-page writer marker so delayed notifications from this page cannot rewind a newer drag; other tabs still synchronize positions and preferences. Temporary storage failures leave the current position usable in memory.
 
-### Automated checks
+### Automated test coverage
 
-If Node.js and Chrome, Edge, or Chromium are already installed, run:
-
-```text
-node --test tests/animation.test.cjs
-```
-
-The tests use Node's built-in test runner; no packages or extension permissions are needed. The runner finds common browser locations on Windows, macOS, and Linux. If needed, set `LOVEBUG_TEST_BROWSER` to the full path of your browser executable. If a browser is not found, the browser checks are reported as skipped; the manifest check still runs.
+The Node test suite described above needs no packages or extension permissions. The runner finds common browser locations on Windows, macOS, and Linux. If a browser is not found, the browser checks are reported as skipped; the manifest check still runs.
 
 The suite exercises the actual content script, CSS, and atlas in isolated Shadow DOM fixtures. It controls timing and simulates Chrome storage and pointer capture. It checks gesture/frame independence, interrupted walks, viewport clamping, delayed storage echoes, cross-tab updates, unavailable storage, interaction exclusions, care actions, Rename, Hide/Show, love notes, and state-appropriate reduced-motion frames. Fixtures and isolated browser profiles are written only to the operating system's temporary directory.
 
