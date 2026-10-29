@@ -5,23 +5,33 @@
   const PET_SIZE = 192; // Sprite cell; the visible sitting kitten is about 160px tall.
   const defaults = { name: 'Lovebug', happiness: 80, hidden: false, sleeping: false, position: null };
   let state = { ...defaults }, host, root, anchor, kitten, panel, bubble, reaction, title, meter, status;
-  let dragging = null, moved = false, walking = false, bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), idleCount = 0;
+  let dragging = null, moved = false, walking = false, walkFrame = null, walkGeneration = 0;
+  let activePose = null, poseTimer, reactionKind = null;
+  let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), idleCount = 0;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  const timers = new Set();
-  function later(fn, ms) { const id = setTimeout(() => { timers.delete(id); fn(); }, ms); timers.add(id); return id; }
+  // Identify our own position notifications so a delayed storage echo cannot
+  // rewind a newer drag/walk. Other tabs still receive and apply our position.
+  const positionWriter = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   function clean(data) {
     return { name: typeof data.name === 'string' ? data.name.trim().slice(0, 30) || 'Lovebug' : 'Lovebug',
       happiness: Number.isFinite(data.happiness) ? Math.max(0, Math.min(100, data.happiness)) : 80,
       hidden: data.hidden === true, sleeping: data.sleeping === true,
-      position: data.position && Number.isFinite(data.position.x) && Number.isFinite(data.position.y) ? data.position : null };
+      position: data.position && Number.isFinite(data.position.x) && Number.isFinite(data.position.y) ? { x: data.position.x, y: data.position.y } : null };
   }
   async function save(patch) {
+    // Capture the visible walk position before rendering any changed preference.
+    if (stopWalk(false)) patch = { position: state.position, ...patch };
+    clearPose();
     state = clean({ ...state, ...patch }); render();
+    await store(patch);
+  }
+  async function store(patch) {
+    if (patch.position) patch = { ...patch, position: { ...patch.position, writer: positionWriter } };
     try { await chrome.storage.local.set(patch); } catch { /* Keep working in memory if storage is unavailable. */ }
   }
   function el(tag, cls, text) { const node = document.createElement(tag); if (cls) node.className = cls; if (text) node.textContent = text; return node; }
   function typing() {
-    let a = document.activeElement;
+    let a = root?.activeElement || document.activeElement;
     while (a?.shadowRoot?.activeElement) a = a.shadowRoot.activeElement;
     return a && (a.matches('input,textarea,select,iframe') || a.isContentEditable);
   }
@@ -30,6 +40,7 @@
     const x = Math.max(0, Math.min(maxX, (state.position?.x ?? .97) * maxX));
     const y = Math.max(0, Math.min(maxY, (state.position?.y ?? .97) * maxY));
     anchor.style.left = `${x}px`; anchor.style.top = `${y}px`;
+    if (panel.hidden && bubble.hidden) return; // Walking needs no hidden-menu layout work.
     const width = Math.min(224, Math.max(0, innerWidth - 16));
     panel.style.width = `${width}px`; bubble.style.width = `${Math.min(220, width)}px`;
     const left = Math.max(8, Math.min(innerWidth - width - 8, x + PET_SIZE - 10 - width)) - x;
@@ -38,12 +49,39 @@
     bubble.style.top = `${Math.max(8, y - bubble.offsetHeight - 8) - y}px`;
     panel.style.maxHeight = `${Math.max(40, innerHeight - 16)}px`; panel.style.overflowY = 'auto';
   }
+  function rememberPixels(x, y) {
+    const maxX = Math.max(0, innerWidth - PET_SIZE), maxY = Math.max(0, innerHeight - PET_SIZE);
+    state.position = {
+      x: maxX ? Math.max(0, Math.min(maxX, x)) / maxX : 0,
+      y: maxY ? Math.max(0, Math.min(maxY, y)) / maxY : 0
+    };
+  }
+  function stopWalk(persist = true) {
+    if (!walking) return false;
+    walking = false;
+    // Invalidate and cancel the old callback so it cannot affect a later walk or drag.
+    walkGeneration++;
+    cancelAnimationFrame(walkFrame); walkFrame = null;
+    rememberPixels(parseFloat(anchor.style.left), parseFloat(anchor.style.top));
+    anchor.classList.remove('walking', 'facing-left');
+    position();
+    if (persist) void store({ position: { ...state.position } });
+    return true;
+  }
+  function stopDrag() {
+    if (!dragging) return;
+    rememberPixels(parseFloat(anchor.style.left), parseFloat(anchor.style.top));
+    const id = dragging.id;
+    dragging = null; moved = true;
+    if (kitten.hasPointerCapture(id)) kitten.releasePointerCapture(id);
+    void store({ position: { ...state.position } });
+  }
   function render() {
     if (!host) return;
     host.style.setProperty('display', state.hidden ? 'none' : 'block', 'important');
     anchor.classList.toggle('sleeping', state.sleeping);
     // Happiness must not permanently close the eyes: blinking needs open eyes.
-    if (state.sleeping || state.hidden) endReaction();
+    if (state.sleeping || state.hidden) { stopDrag(); endReaction(); }
     title.textContent = state.name; status.textContent = `♥ ${state.happiness}/100 · ${state.sleeping ? 'Dreaming of you' : state.happiness >= 90 ? 'Feeling adored' : 'Happy to be here'}`;
     meter.style.width = `${state.happiness}%`;
     kitten.setAttribute('aria-label', `${state.name}, ${state.sleeping ? 'sleeping kitten. Wake and open menu' : 'open kitten menu'}`);
@@ -51,65 +89,84 @@
     position();
   }
   function say(text) {
-    if (state.hidden || document.hidden || typing() || !panel.hidden || dragging) return;
+    if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind) return false;
     bubble.textContent = text; bubble.hidden = false; position();
     clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 7000);
+    return true;
   }
   function endReaction() {
     clearTimeout(reactionTimer);
+    reactionKind = null;
     anchor.classList.remove('petting', 'feeding', 'waking');
     reaction.replaceChildren();
   }
   function react(kind) {
+    stopWalk(); clearPose();
     endReaction();
-    // Stop walking before a user interaction so its frame loop cannot move the menu.
-    walking = false; anchor.classList.remove('walking'); position();
+    reactionKind = kind;
     anchor.classList.add(kind);
     const symbols = kind === 'feeding' ? ['●', '♥', '♥'] : kind === 'waking' ? ['✧', '✦', '✧'] : ['♥', '♡', '♥'];
     for (const symbol of symbols) reaction.append(el('span', 'particle', symbol));
     reactionTimer = setTimeout(endReaction, 3200);
   }
   function pose(cls, duration) {
+    if (!canIdle()) return;
+    activePose = cls;
     anchor.classList.add(cls);
-    later(() => anchor.classList.remove(cls), duration);
+    poseTimer = setTimeout(clearPose, duration);
+  }
+  function clearPose() {
+    clearTimeout(poseTimer);
+    if (activePose) anchor.classList.remove(activePose);
+    activePose = null;
+  }
+  function canIdle() {
+    return !state.hidden && !state.sleeping && !document.hidden && !motion.matches &&
+      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !typing();
   }
   function schedule() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
-      if (!state.hidden && !document.hidden && panel.hidden && !dragging) {
-        if (!state.sleeping) {
+      if (!state.hidden && !document.hidden) {
+        // Offer a note before selecting a pose; a visible bubble then blocks walking.
+        if (Date.now() - lastMessage > 180000 && Math.random() < .14 &&
+          say(globalThis.LOVEBUG_MESSAGES[Math.floor(Math.random() * globalThis.LOVEBUG_MESSAGES.length)])) lastMessage = Date.now();
+        if (canIdle()) {
           idleCount++;
           const n = Math.random();
-          if (n < .42) pose('blink', 650);
+          // Choose one action per tick; a periodic walk must not overlap a pose.
+          if (idleCount % 6 === 0) walk();
+          else if (n < .42) pose('blink', 650);
           else if (n < .62) pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
           else if (n < .78) pose('twitch', 600);
           else if (n < .9) pose('stretch', 1900);
-          else if (n < .98 && !motion.matches && !typing()) walk();
-          else if (!typing()) save({ sleeping: true });
-          if (idleCount % 6 === 0 && !walking && !motion.matches && !typing() && !state.sleeping) walk();
-        }
-        if (Date.now() - lastMessage > 180000 && Math.random() < .14 && !state.sleeping) {
-          say(globalThis.LOVEBUG_MESSAGES[Math.floor(Math.random() * globalThis.LOVEBUG_MESSAGES.length)]); lastMessage = Date.now();
+          else if (n < .98) walk();
+          else save({ sleeping: true });
         }
       }
       schedule();
     }, 3500 + Math.random() * 4000);
   }
   function walk() {
+    if (!canIdle()) return;
     walking = true; anchor.classList.add('walking');
+    const generation = ++walkGeneration;
     const x = parseFloat(anchor.style.left), max = Math.max(0, innerWidth - PET_SIZE);
     const direction = x > max - 65 ? -1 : x < 65 ? 1 : Math.random() < .5 ? -1 : 1;
     anchor.classList.toggle('facing-left', direction < 0);
     const target = Math.max(0, Math.min(max, x + direction * 65));
     const started = performance.now();
     function frame(now) {
-      if (!walking || state.hidden || state.sleeping || document.hidden || motion.matches || !panel.hidden || dragging) { walking = false; anchor.classList.remove('walking'); position(); return; }
+      if (generation !== walkGeneration || !walking) return;
+      if (state.hidden || state.sleeping || document.hidden || motion.matches || !panel.hidden || dragging || activePose || reactionKind) { stopWalk(); return; }
       const p = Math.min(1, (now - started) / 1700);
-      anchor.style.left = `${x + (target - x) * p}px`;
-      if (p < 1) requestAnimationFrame(frame);
-      else { walking = false; anchor.classList.remove('walking'); save({ position: { x: max ? target / max : 0, y: state.position?.y ?? .97 } }); }
+      // Keep render() and position() on the live position, not the pre-walk save.
+      rememberPixels(x + (target - x) * p, parseFloat(anchor.style.top));
+      position();
+      if (p < 1) walkFrame = requestAnimationFrame(frame);
+      else stopWalk();
     }
-    requestAnimationFrame(frame);
+    walkFrame = requestAnimationFrame(frame);
   }
   async function init() {
     try { state = clean(await chrome.storage.local.get(defaults)); } catch { /* defaults */ }
@@ -125,7 +182,8 @@
     const sprite = el('span', 'sprite'); sprite.setAttribute('aria-hidden', 'true');
     sprite.style.backgroundImage = 'url("' + spriteUrl + '")';
     const sleepZ = el('span', 'sprite-z', 'z Z'); sleepZ.setAttribute('aria-hidden', 'true');
-    kitten.append(sprite, sleepZ);
+    const gesture = el('span', 'gesture'); gesture.append(sprite);
+    kitten.append(gesture, sleepZ);
     panel = el('section', 'panel'); panel.hidden = true; panel.setAttribute('aria-label', 'Kitten care');
     title = el('div', 'title'); status = el('div', 'sub'); const track = el('div', 'meter'); meter = el('span'); track.append(meter);
     const actions = el('div', 'actions'); const rename = el('form', 'rename'); rename.hidden = true;
@@ -145,7 +203,7 @@
     anchor.append(kitten, panel, bubble, reaction); root.append(anchor); document.documentElement.append(host); render();
     kitten.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
-      walking = false; anchor.classList.remove('walking'); position();
+      stopWalk(); clearPose(); endReaction(); position();
       dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, left: parseFloat(anchor.style.left), top: parseFloat(anchor.style.top) }; moved = false;
       kitten.setPointerCapture(e.pointerId);
     });
@@ -162,15 +220,35 @@
     kitten.addEventListener('pointerup', release); kitten.addEventListener('pointercancel', () => { moved = true; release(); }); kitten.addEventListener('lostpointercapture', release);
     kitten.addEventListener('click', e => {
       if (moved && e.detail !== 0) { moved = false; return; }
+      stopWalk(); clearPose();
       if (state.sleeping) save({ sleeping: false });
       panel.hidden = !panel.hidden; bubble.hidden = true; kitten.setAttribute('aria-expanded', String(!panel.hidden)); position();
     });
     document.addEventListener('pointerdown', e => { if (!e.composedPath().includes(host)) { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); } }, true);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); kitten.focus(); } });
     document.addEventListener('keydown', () => { bubble.hidden = true; }, true);
-    addEventListener('resize', position);
-    document.addEventListener('visibilitychange', () => { anchor.classList.toggle('paused', document.hidden); if (document.hidden) bubble.hidden = true; });
-    chrome.storage.onChanged.addListener((changes, area) => { if (area !== 'local') return; const patch = {}; for (const key of Object.keys(defaults)) if (changes[key]) patch[key] = changes[key].newValue ?? defaults[key]; state = clean({ ...state, ...patch }); render(); });
+    addEventListener('resize', () => {
+      stopWalk(); clearPose();
+      stopDrag();
+      position();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { stopWalk(); stopDrag(); clearPose(); bubble.hidden = true; }
+      anchor.classList.toggle('paused', document.hidden);
+    });
+    motion.addEventListener('change', () => { if (motion.matches) { stopWalk(); clearPose(); } });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      const patch = {};
+      for (const key of Object.keys(defaults)) if (changes[key]) patch[key] = changes[key].newValue ?? defaults[key];
+      // A local drag owns its live position until release; unrelated tab updates
+      // may still update name, happiness and visibility without moving the kitten.
+      if (dragging || patch.position?.writer === positionWriter) delete patch.position;
+      else if ('position' in patch) stopWalk(false);
+      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); }
+      state = clean({ ...state, ...patch }); render();
+    });
+    anchor.classList.toggle('paused', document.hidden);
     schedule();
     // A slow health check restores the overlay if a dynamic site replaces its root content.
     setInterval(() => { if (!host.isConnected && document.documentElement) document.documentElement.append(host); }, 10000);

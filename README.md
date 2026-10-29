@@ -117,3 +117,30 @@ This is a generated interpretation of the supplied kitten, not a pixel-for-pixel
 Verification: JavaScript syntax, Manifest V3 references, storage-only permission, reference-copy hash, atlas dimensions and all twenty transparent cell corners passed. Headless Edge/Chromium checks using the actual scripts/CSS and mocked storage passed: single-frame clipping, timed blink frame selection, walking frames and left mirroring, Pet/Feed happiness and state selection, Sleep/Wake, Rename, and Hide/Show. The atlas was visually inspected for clipped characters and background artifacts. Full installed-Chrome behavior, actual drag pointer gestures, and macOS still require manual testing.
 
 To use this update: visit chrome://extensions, click Reload on Little Lovebug, then refresh every website tab. If asleep, click Wake up. Try Pet and Feed, then Sleep and Wake up. Close the menu to allow occasional walking. The new saved position is clamped using the larger sprite canvas.
+
+## Idle gestures and walking fixes (issue #2)
+
+Stretch, twitch, and eating transforms now use a small wrapper around the sprite. The sitting/blinking frame sequence continues independently, without new artwork. Idle poses, walking, care reactions, menu use, typing, and speech bubbles do not compete for control of the kitten.
+
+Walking updates the in-memory normalized position on every frame. Interruptions cancel the pending frame and persist the last visible location. Dragging, opening the menu, Pet/Feed, Sleep/Hide, a tab becoming hidden, a reduced-motion change, and resizing all stop a walk without restoring its old starting point. A resize clamps the visible position inside the new viewport. Position storage includes an anonymous per-page writer marker so delayed notifications from this page cannot rewind a newer drag; other tabs still synchronize positions and preferences. Temporary storage failures leave the current position usable in memory.
+
+### Automated checks
+
+If Node.js and Chrome, Edge, or Chromium are already installed, run:
+
+```text
+node --test tests/animation.test.cjs
+```
+
+The tests use Node's built-in test runner; no packages or extension permissions are needed. The runner finds common browser locations on Windows, macOS, and Linux. If needed, set `LOVEBUG_TEST_BROWSER` to the full path of your browser executable. If a browser is not found, the browser checks are reported as skipped; the manifest check still runs.
+
+The suite exercises the actual content script, CSS, and atlas in isolated Shadow DOM fixtures. It controls timing and simulates Chrome storage and pointer capture. It checks gesture/frame independence, interrupted walks, viewport clamping, delayed storage echoes, cross-tab updates, unavailable storage, interaction exclusions, care actions, Rename, Hide/Show, love notes, and state-appropriate reduced-motion frames. Fixtures and isolated browser profiles are written only to the operating system's temporary directory.
+
+### Manual Chrome checks still needed
+
+1. Reload Little Lovebug on `chrome://extensions` and refresh a normal website tab.
+2. While the kitten walks, click it, drag it, open its menu with the keyboard, or resize the window. It should stay where it stopped (or clamp to the new window edge).
+3. Interrupt walks by hiding the kitten from the toolbar, switching tabs, and enabling reduced motion. Show or wake it again and confirm its position remains saved after refreshing.
+4. Try Pet, Feed, Sleep/Wake, Rename, messages, and two open website tabs. Watch stretch/twitch gestures for smooth sitting/blinking frames, and confirm no walking begins during a reaction or while a menu or note is visible.
+
+The automated browser fixtures do not test Chrome's installed-extension runtime, actual hardware pointer capture, OS tab switching, or macOS behavior. No artwork, permissions, or runtime network calls were added for this fix.

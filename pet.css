@@ -49,7 +49,7 @@
 .walking.facing-left .sprite{transform:scaleX(-1)}
 .sleeping .sprite{background-position-y:-576px;animation:sprite-frames 2.8s steps(4) infinite}
 .petting .sprite{background-position-y:-768px;animation:sprite-frames .9s steps(4) infinite}
-.feeding .sprite{background-position-y:-768px;animation:sprite-frames .8s steps(4) infinite,sprite-munch .4s ease-in-out infinite}
+.feeding .sprite{background-position-y:-768px;animation:sprite-frames .8s steps(4) infinite}
 .waking .sprite{animation:sprite-idle 5.4s step-end infinite}
 .sprite-z{display:none;position:absolute;right:7px;top:60px;color:#a787b7;font:bold 22px ui-rounded,sans-serif;pointer-events:none}
 .sleeping .sprite-z{display:block;animation:float 2s ease-in-out infinite}
@@ -59,11 +59,14 @@
 @keyframes sprite-idle{0%,100%{background-position:0 0}18%{background-position:-192px 0}36%{background-position:-384px 0}54%{background-position:-576px 0}76%{background-position:0 -192px}79%{background-position:-192px -192px}81%{background-position:-384px -192px}83%{background-position:-576px -192px}85%{background-position:0 0}}
 @keyframes sprite-munch{50%{transform:translateY(4px) rotate(2deg)}}
 @media(prefers-reduced-motion:reduce){.sprite{animation:none!important;background-position:0 0}.sleeping .sprite{background-position:0 -576px}.petting .sprite,.feeding .sprite{background-position:0 -768px}.sprite-z{animation:none!important}}
-.look .sprite{transform:translateX(2px) rotate(2deg)}
-.look-left .sprite{transform:translateX(-2px) rotate(-2deg)}
-.stretch .sprite{animation:sprite-stretch 1.8s ease-in-out}
-.twitch .sprite{animation:sprite-idle 5.4s step-end infinite,sprite-twitch .5s ease-in-out}
+.gesture{display:block;width:192px;height:192px;transform-origin:50% 95%;pointer-events:none}
+.look .gesture{transform:translateX(2px) rotate(2deg)}
+.look-left .gesture{transform:translateX(-2px) rotate(-2deg)}
+/* Frame selection stays on .sprite; only its wrapper performs gestures. */
+.stretch .gesture{animation:sprite-stretch 1.8s ease-in-out}
+.twitch .gesture{animation:sprite-twitch .5s ease-in-out}
+.feeding .gesture{animation:sprite-munch .4s ease-in-out infinite}
 @keyframes sprite-stretch{50%{transform:scale(1.06,.92)}}
 @keyframes sprite-twitch{50%{transform:rotate(-2deg)}}
-.paused .sprite,.paused .sprite-z,.paused .particle{animation-play-state:paused!important}
-@media(prefers-reduced-motion:reduce){.look .sprite,.look-left .sprite{transform:none}}
+.paused .sprite,.paused .gesture,.paused .sprite-z,.paused .particle{animation-play-state:paused!important}
+@media(prefers-reduced-motion:reduce){.look .gesture,.look-left .gesture{transform:none}}
