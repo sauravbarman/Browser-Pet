@@ -14,6 +14,80 @@
   // Identify our own position notifications so a delayed storage echo cannot
   // rewind a newer drag/walk. Other tabs still receive and apply our position.
   const positionWriter = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // ── Sleep pose state (ephemeral per-tab, not persisted) ──────────────────
+  let sleepPose = null, lastSleepPose = null, sleepPoseTimer = null, dreamBubbleTimer = null;
+  const SLEEP_POSES = ['curled', 'side', 'face', 'belly'];
+  const SLEEP_POSE_WEIGHTS = [40, 30, 20, 10]; // %
+
+  function pickSleepPose() {
+    // Weighted random selection avoiding the last pose
+    const available = SLEEP_POSES.map((p, i) => ({ p, w: SLEEP_POSE_WEIGHTS[i] }))
+      .filter(({ p }) => p !== lastSleepPose);
+    const sum = available.reduce((s, { w }) => s + w, 0);
+    let r = Math.random() * sum;
+    for (const { p, w } of available) { r -= w; if (r <= 0) return p; }
+    return available[available.length - 1].p;
+  }
+
+  function applySleepPose(pose) {
+    if (sleepPose) anchor.classList.remove('sleep-' + sleepPose);
+    sleepPose = pose;
+    lastSleepPose = pose;
+    if (pose) anchor.classList.add('sleep-' + pose);
+  }
+
+  function scheduleSleepPoseChange() {
+    clearTimeout(sleepPoseTimer);
+    if (!state.sleeping || motion.matches || document.hidden) return;
+    sleepPoseTimer = setTimeout(() => {
+      if (!state.sleeping || motion.matches || document.hidden) return;
+      if (!dragging) {
+        applySleepPose(pickSleepPose());
+      }
+      scheduleSleepPoseChange();
+    }, 45000 + Math.random() * 45000);
+  }
+
+  function startSleepPose() {
+    if (!state.sleeping) return;
+    const pose = pickSleepPose();
+    applySleepPose(pose);
+    if (!motion.matches) scheduleSleepPoseChange();
+  }
+
+  function clearSleepPose() {
+    clearTimeout(sleepPoseTimer);
+    sleepPoseTimer = null;
+    if (sleepPose) anchor.classList.remove('sleep-' + sleepPose);
+    sleepPose = null;
+  }
+
+  function spawnDreamBubble() {
+    if (!anchor) return;
+    const symbols = ['z', 'Z', '♡', 'z', 'Z'];
+    const sym = symbols[Math.floor(Math.random() * symbols.length)];
+    const colors = ['#b996d1', '#f4a7c0', '#c5b8f0', '#a787b7'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const bub = document.createElement('span');
+    bub.className = 'dream-bubble';
+    bub.textContent = sym;
+    bub.setAttribute('aria-hidden', 'true');
+    const size = 12 + Math.random() * 10;
+    bub.style.cssText = `font-size:${size}px;color:${color};right:${5 + Math.random() * 20}px;top:${40 + Math.random() * 20}px`;
+    anchor.append(bub);
+    setTimeout(() => { if (bub.isConnected) bub.remove(); }, 3000);
+  }
+
+  function scheduleDreamBubble() {
+    clearTimeout(dreamBubbleTimer);
+    if (!state.sleeping || motion.matches || document.hidden) return;
+    dreamBubbleTimer = setTimeout(() => {
+      if (state.sleeping && !motion.matches && !document.hidden) spawnDreamBubble();
+      scheduleDreamBubble();
+    }, 4000 + Math.random() * 6000);
+  }
+
   function clean(data) {
     return { name: typeof data.name === 'string' ? data.name.trim().slice(0, 30) || 'Lovebug' : 'Lovebug',
       happiness: Number.isFinite(data.happiness) ? Math.max(0, Math.min(100, data.happiness)) : 80,
@@ -80,6 +154,8 @@
   }
   function render() {
     if (!host) return;
+    // Track sleeping state before DOM update to detect transitions
+    const wasSleeping = anchor.classList.contains('sleeping');
     host.style.setProperty('display', state.hidden ? 'none' : 'block', 'important');
     anchor.classList.toggle('sleeping', state.sleeping);
     // Happiness must not permanently close the eyes: blinking needs open eyes.
@@ -93,6 +169,17 @@
     }
     if (state.hidden) { panel.hidden = bubble.hidden = true; }
     position();
+    // Handle sleeping pose transitions
+    if (state.sleeping && !wasSleeping) {
+      startSleepPose();
+      scheduleDreamBubble();
+    } else if (!state.sleeping && wasSleeping) {
+      clearSleepPose();
+      clearTimeout(dreamBubbleTimer);
+      dreamBubbleTimer = null;
+      // Clean up any lingering dream bubble elements
+      anchor.querySelectorAll('.dream-bubble').forEach(el => el.remove());
+    }
   }
   function say(text) {
     if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind) return false;
@@ -472,7 +559,15 @@
     sprite.style.backgroundImage = 'url("' + spriteUrl + '")';
     const sleepZ = el('span', 'sprite-z', 'z Z'); sleepZ.setAttribute('aria-hidden', 'true');
     const gesture = el('span', 'gesture'); gesture.append(sprite);
-    kitten.append(gesture, sleepZ);
+
+    // Sleep pose overlay elements (always present, shown/hidden via CSS)
+    const sleepPawOverlay = el('div', 'sleep-paw-overlay');
+    sleepPawOverlay.setAttribute('aria-hidden', 'true');
+    const sleepBellyMarks = el('div', 'sleep-belly-marks');
+    sleepBellyMarks.setAttribute('aria-hidden', 'true');
+    sleepBellyMarks.textContent = '·   ·   ·';
+
+    kitten.append(gesture, sleepZ, sleepPawOverlay, sleepBellyMarks);
     panel = el('section', 'panel'); panel.hidden = true; panel.setAttribute('aria-label', 'Kitten care');
     title = el('div', 'title'); status = el('div', 'sub'); const track = el('div', 'meter'); meter = el('span'); track.append(meter);
     const actions = el('div', 'actions'); const rename = el('form', 'rename'); rename.hidden = true;
@@ -540,10 +635,30 @@
       position();
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { stopWalk(); stopDrag(); clearPose(); cancelToy(); bubble.hidden = true; }
+      if (document.hidden) {
+        stopWalk(); stopDrag(); clearPose(); cancelToy(); bubble.hidden = true;
+        // Pause dream bubbles when tab is hidden
+        clearTimeout(dreamBubbleTimer); dreamBubbleTimer = null;
+      } else if (state.sleeping) {
+        // Resume dream bubbles when tab becomes visible again while sleeping
+        scheduleDreamBubble();
+      }
       anchor.classList.toggle('paused', document.hidden);
     });
-    motion.addEventListener('change', () => { if (motion.matches) { stopWalk(); clearPose(); cancelToy(); } });
+    motion.addEventListener('change', () => {
+      if (motion.matches) {
+        stopWalk(); clearPose(); cancelToy();
+        // Clear pose change timer when motion is reduced
+        clearTimeout(sleepPoseTimer); sleepPoseTimer = null;
+        // Clear dream bubbles when reduced motion is enabled
+        clearTimeout(dreamBubbleTimer); dreamBubbleTimer = null;
+        anchor.querySelectorAll('.dream-bubble').forEach(el => el.remove());
+      } else if (state.sleeping) {
+        // Resume scheduled pose changes and dream bubbles if now sleeping
+        scheduleSleepPoseChange();
+        scheduleDreamBubble();
+      }
+    });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
       const patch = {};

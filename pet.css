@@ -96,3 +96,169 @@
 @keyframes toy-sparkle-pop{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--sx),var(--sy)) scale(0.4)}}
 
 @media(prefers-reduced-motion:reduce){.toy-yarn,.toy-butterfly,.toy-heart,.toy-sparkle{animation:none!important;transition:none!important}}
+
+/* ── Feature 2: Multiple Sleeping Positions ───────────────────────── */
+.gesture {
+  transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Sleep pose transforms applied to .gesture wrapper */
+.sleep-curled .gesture {
+  transform: scale(0.94, 0.92) translateY(5px) rotate(-1deg);
+}
+
+.sleep-side .gesture {
+  transform: rotate(-16deg) translate(-7px, 6px) scale(0.96);
+}
+
+.sleep-face .gesture {
+  transform: rotate(-6deg) translateY(4px) scale(0.95, 0.93);
+}
+
+.sleep-belly .gesture {
+  transform: rotate(12deg) translate(4px, 1px) scale(0.96, 0.94);
+}
+
+/* Breathing & subtle dream twitches on .sprite during sleep */
+.sleeping.sleep-curled .sprite {
+  animation: sprite-frames 2.8s steps(4) infinite, sleep-breathe-curled 4.2s ease-in-out infinite;
+}
+.sleeping.sleep-side .sprite {
+  animation: sprite-frames 2.8s steps(4) infinite, sleep-breathe-side 4.6s ease-in-out infinite;
+}
+.sleeping.sleep-face .sprite {
+  animation: sprite-frames 2.8s steps(4) infinite, sleep-breathe-face 4.4s ease-in-out infinite;
+}
+.sleeping.sleep-belly .sprite {
+  animation: sprite-frames 2.8s steps(4) infinite, sleep-breathe-belly 4.8s ease-in-out infinite;
+}
+
+@keyframes sleep-breathe-curled {
+  0%, 100% { transform: scale(1); }
+  50% { transform: translateY(-2px) scale(1.02, 1.03); }
+  75% { transform: translateY(-1px) scale(1.01) rotate(-1deg); }
+}
+
+@keyframes sleep-breathe-side {
+  0%, 100% { transform: scale(1); }
+  48% { transform: translateY(-2.5px) scale(1.02, 1.035); }
+  72% { transform: translateY(-2px) scale(1.02) rotate(1.5deg); }
+}
+
+@keyframes sleep-breathe-face {
+  0%, 100% { transform: scale(1); }
+  50% { transform: translateY(-2px) scale(1.015, 1.03); }
+}
+
+@keyframes sleep-breathe-belly {
+  0%, 100% { transform: scale(1); }
+  50% { transform: translateY(-2px) scale(1.025, 1.035); }
+  80% { transform: translateY(-1.5px) scale(1.02) rotate(-1.5deg); }
+}
+
+/* Face-covering sleep paw overlay */
+.sleep-paw-overlay {
+  display: none;
+  position: absolute;
+  top: 80px;
+  left: 76px;
+  width: 26px;
+  height: 18px;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 40% 35%, #fff 40%, #f3edf5 100%);
+  border: 1.5px solid #d8cede;
+  box-shadow: 0 1px 3px rgba(114, 83, 108, 0.15);
+  pointer-events: none;
+  transform-origin: 20% 80%;
+  transform: rotate(-25deg);
+  z-index: 2;
+  transition: opacity 0.4s ease-out;
+}
+.sleep-paw-overlay::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 5px;
+  width: 14px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f7b6ce;
+  opacity: 0.55;
+}
+.sleep-face .sleep-paw-overlay {
+  display: block;
+  animation: sleep-paw-shift 6s ease-in-out infinite;
+}
+@keyframes sleep-paw-shift {
+  0%, 100% { transform: rotate(-25deg) translateY(0); }
+  50% { transform: rotate(-22deg) translateY(-1.5px); }
+  70% { transform: rotate(-28deg) translateY(0.5px); }
+  85% { transform: rotate(-25deg) translateY(0); }
+}
+
+/* Belly-up sleep tummy fluff & soft heart */
+.sleep-belly-marks {
+  display: none;
+  position: absolute;
+  top: 104px;
+  left: 82px;
+  width: 28px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.85) 0%, rgba(247, 182, 206, 0.25) 60%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+  font-size: 10px;
+  color: #de8eb0;
+  transition: opacity 0.4s ease-out;
+}
+.sleep-belly-marks::after {
+  content: '♡';
+  font-size: 10px;
+  opacity: 0.7;
+}
+.sleep-belly .sleep-belly-marks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sleep-belly-breathe 4s ease-in-out infinite;
+}
+@keyframes sleep-belly-breathe {
+  0%, 100% { transform: scale(0.95); opacity: 0.65; }
+  50% { transform: scale(1.1); opacity: 0.95; }
+}
+
+/* Floating dream bubbles (z, Z, ♡) */
+.dream-bubble {
+  position: absolute;
+  pointer-events: none;
+  font-weight: bold;
+  font-family: ui-rounded, "Segoe UI", sans-serif;
+  opacity: 0;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+  animation: dream-float 3s ease-out forwards;
+  z-index: 3;
+}
+@keyframes dream-float {
+  0% { opacity: 0; transform: translateY(8px) scale(0.6); }
+  25% { opacity: 0.85; transform: translateY(-6px) scale(1); }
+  75% { opacity: 0.6; transform: translateY(-26px) scale(1.05); }
+  100% { opacity: 0; transform: translateY(-44px) scale(0.9); }
+}
+
+.paused .dream-bubble, .paused .sleep-paw-overlay, .paused .sleep-belly-marks {
+  animation-play-state: paused !important;
+}
+
+/* Reduced motion support for Feature 2 */
+@media(prefers-reduced-motion:reduce) {
+  .gesture { transition: none !important; }
+  .sleep-curled .gesture { transform: scale(0.94, 0.92) translateY(5px) rotate(-1deg); }
+  .sleep-side .gesture { transform: rotate(-16deg) translate(-7px, 6px) scale(0.96); }
+  .sleep-face .gesture { transform: rotate(-6deg) translateY(4px) scale(0.95, 0.93); }
+  .sleep-belly .gesture { transform: rotate(12deg) translate(4px, 1px) scale(0.96, 0.94); }
+  .sleeping .sprite, .sleeping.sleep-curled .sprite, .sleeping.sleep-side .sprite, .sleeping.sleep-face .sprite, .sleeping.sleep-belly .sprite {
+    animation: none !important;
+  }
+  .sleep-paw-overlay, .sleep-belly-marks, .dream-bubble { animation: none !important; }
+}
