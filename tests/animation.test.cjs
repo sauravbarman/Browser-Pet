@@ -266,6 +266,18 @@ async function scenarios(reducedOnly) {
     check(!p.anchor.classList.contains('walking'), 'Walk overlapped note');
     p.h.tick(7000); check(p.root.querySelector('.bubble').hidden, 'Note did not expire');
   });
+  await scenario('random notes avoid immediate repeats and handle short message lists', p => {
+    const bubble = p.root.querySelector('.bubble');
+    const nextNote = () => { p.h.tick(181000); p.h.frame(1700); p.h.next(); };
+    p.h.random(.1); p.w.LOVEBUG_MESSAGES = ['First note', 'Second note']; nextNote();
+    check(bubble.textContent === 'First note', 'First random note was not selected');
+    p.h.tick(7000); nextNote();
+    check(bubble.textContent === 'Second note', 'Random note immediately repeated');
+    p.h.tick(7000); p.w.LOVEBUG_MESSAGES = ['Only note']; nextNote();
+    check(bubble.textContent === 'Only note', 'One-item message list was not displayed');
+    p.h.tick(7000); p.w.LOVEBUG_MESSAGES = []; nextNote();
+    check(bubble.hidden, 'Empty message list displayed a note');
+  });
   return results;
 }
 
@@ -288,7 +300,7 @@ for (const reduced of [false, true]) {
     assert.ok(result && result !== 'RUNNING', 'Browser test did not finish');
     const parsed = JSON.parse(result.replaceAll('&gt;', '>').replaceAll('&lt;', '<').replaceAll('&amp;', '&'));
     assert.equal(parsed.ok, true, parsed.error);
-    assert.equal(parsed.results.length, reduced ? 1 : 26, 'Some browser scenarios did not execute');
+    assert.equal(parsed.results.length, reduced ? 1 : 27, 'Some browser scenarios did not execute');
     for (const line of parsed.results) console.log(line);
     // Files remain in the OS temp directory for diagnosing a browser failure.
   });

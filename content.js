@@ -7,7 +7,7 @@
   let state = { ...defaults }, host, root, anchor, kitten, panel, bubble, reaction, title, meter, status;
   let dragging = null, moved = false, walking = false, walkFrame = null, walkGeneration = 0;
   let activePose = null, poseTimer, reactionKind = null;
-  let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), idleCount = 0;
+  let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), previousRandomMessage, idleCount = 0;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   // Identify our own position notifications so a delayed storage echo cannot
   // rewind a newer drag/walk. Other tabs still receive and apply our position.
@@ -124,13 +124,22 @@
     return !state.hidden && !state.sleeping && !document.hidden && !motion.matches &&
       panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !typing();
   }
+  function randomMessage() {
+    const messages = globalThis.LOVEBUG_MESSAGES;
+    if (!Array.isArray(messages) || messages.length === 0) return;
+    const choices = messages.length > 1 ? messages.filter(message => message !== previousRandomMessage) : messages;
+    const available = choices.length ? choices : messages;
+    return available[Math.floor(Math.random() * available.length)];
+  }
   function schedule() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       if (!state.hidden && !document.hidden) {
         // Offer a note before selecting a pose; a visible bubble then blocks walking.
-        if (Date.now() - lastMessage > 180000 && Math.random() < .14 &&
-          say(globalThis.LOVEBUG_MESSAGES[Math.floor(Math.random() * globalThis.LOVEBUG_MESSAGES.length)])) lastMessage = Date.now();
+        if (Date.now() - lastMessage > 180000 && Math.random() < .14) {
+          const message = randomMessage();
+          if (message !== undefined && say(message)) { previousRandomMessage = message; lastMessage = Date.now(); }
+        }
         if (canIdle()) {
           idleCount++;
           const n = Math.random();
