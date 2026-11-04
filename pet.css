@@ -70,3 +70,29 @@
 @keyframes sprite-twitch{50%{transform:rotate(-2deg)}}
 .paused .sprite,.paused .gesture,.paused .sprite-z,.paused .particle{animation-play-state:paused!important}
 @media(prefers-reduced-motion:reduce){.look .gesture,.look-left .gesture{transform:none}}
+
+/* ── Toy interactions ─────────────────────────────────────────────── */
+.toy-yarn,.toy-butterfly,.toy-heart{position:absolute;pointer-events:none;z-index:4;transition:transform 0.5s ease-out,opacity 0.8s ease-out}
+
+/* Yarn ball: pastel pink circle with cross-hatch lines */
+.toy-yarn{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fbd0e0,#f4a7c0);box-shadow:0 1px 3px #d4749960;animation:toy-yarn-wobble 1.2s ease-in-out infinite}
+@keyframes toy-yarn-wobble{0%,100%{transform:rotate(0deg)}50%{transform:rotate(8deg)}}
+
+/* Butterfly: two pastel wings using CSS clip-path shapes */
+.toy-butterfly{width:28px;height:20px;position:absolute;animation:toy-bf-flap 0.35s ease-in-out infinite alternate}
+.toy-butterfly::before,.toy-butterfly::after{content:'';position:absolute;top:4px;width:12px;height:14px;background:#c9a9e8;border-radius:50% 50% 40% 40%;opacity:0.85}
+.toy-butterfly::before{left:0;transform:rotate(20deg);background:#d4baf0}
+.toy-butterfly::after{right:0;transform:rotate(-20deg);background:#c5b8f0}
+@keyframes toy-bf-flap{from{transform:scaleY(1)}to{transform:scaleY(0.35)}}
+
+/* Floating heart */
+.toy-heart{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#f093b0;text-shadow:0 1px 4px #f4c0d040;animation:toy-heart-bob 1s ease-in-out infinite}
+.toy-heart::before{content:'💗'}
+@keyframes toy-heart-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* Heart burst sparkles */
+.toy-heart-burst{animation:none}
+.toy-sparkle{position:absolute;top:0;left:0;font-size:11px;color:#f4a7c0;opacity:0;animation:toy-sparkle-pop 0.6s ease-out forwards}
+@keyframes toy-sparkle-pop{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--sx),var(--sy)) scale(0.4)}}
+
+@media(prefers-reduced-motion:reduce){.toy-yarn,.toy-butterfly,.toy-heart,.toy-sparkle{animation:none!important;transition:none!important}}

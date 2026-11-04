@@ -9,6 +9,7 @@
   let activePose = null, poseTimer, reactionKind = null;
   let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), previousRandomMessage, idleCount = 0;
   let actionButtons = {}, clickTimer = null;
+  let toyTimer = null, toyCleanup = null, lastToyKind = null, toyCount = 0;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   // Identify our own position notifications so a delayed storage echo cannot
   // rewind a newer drag/walk. Other tabs still receive and apply our position.
@@ -22,7 +23,7 @@
   async function save(patch) {
     // Capture the visible walk position before rendering any changed preference.
     if (stopWalk(false)) patch = { position: state.position, ...patch };
-    clearPose();
+    clearPose(); cancelToy();
     state = clean({ ...state, ...patch }); render();
     await store(patch);
   }
@@ -125,9 +126,14 @@
     if (activePose) anchor.classList.remove(activePose);
     activePose = null;
   }
+  function cancelToy() {
+    if (!toyCleanup) return;
+    const fn = toyCleanup; toyCleanup = null;
+    fn();
+  }
   function canIdle() {
     return !state.hidden && !state.sleeping && !document.hidden && !motion.matches &&
-      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !typing();
+      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !typing();
   }
   function randomMessage() {
     const messages = globalThis.LOVEBUG_MESSAGES;
@@ -153,6 +159,257 @@
     const available = choices.length ? choices : pool;
     return available[Math.floor(Math.random() * available.length)];
   }
+  function toyPosition() {
+    // Returns pixel position of anchor for toy placement reference
+    const ax = parseFloat(anchor.style.left), ay = parseFloat(anchor.style.top);
+    return { ax, ay };
+  }
+
+  function clampToyX(x, w) {
+    return Math.max(0, Math.min(innerWidth - w, x));
+  }
+
+  function clampToyY(y, h) {
+    return Math.max(0, Math.min(innerHeight - h, y));
+  }
+
+  function playYarn() {
+    if (!canIdle() || motion.matches) return;
+    const { ax, ay } = toyPosition();
+    // Spawn yarn ball to the left or right of the kitten
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const ballW = 24, ballH = 24;
+    const rawX = ax + (side < 0 ? -ballW - 10 : 192 + 10);
+    const rawY = ay + 148;
+    const bx = clampToyX(rawX - ax, ballW + 60); // relative to anchor
+    const by = clampToyY(rawY - ay, ballH);
+
+    const ball = document.createElement('div');
+    ball.className = 'toy-yarn';
+    ball.setAttribute('aria-hidden', 'true');
+    ball.style.cssText = `left:${bx}px;top:${by}px`;
+    anchor.append(ball);
+
+    const rollDir = side > 0 ? 1 : -1;
+    const rollDist = 28 + Math.random() * 20;
+    let done = false;
+
+    const timers = [];
+    function t(fn, ms) { const id = setTimeout(fn, ms); timers.push(id); return id; }
+
+    // Phase 1: kitten looks toward ball
+    const lookCls = bx < 96 ? 'look-left' : 'look';
+    activePose = lookCls; anchor.classList.add(lookCls);
+
+    // Phase 2: bat — after a moment kitten reaches with paw
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+      activePose = 'twitch'; anchor.classList.add('twitch');
+      // Ball rolls
+      ball.style.transform = `translateX(${rollDir * rollDist}px)`;
+      ball.style.transition = 'transform 0.5s ease-out';
+    }, 900 + Math.random() * 300);
+
+    // Phase 3: sometimes walk a step toward ball
+    const willStep = Math.random() < 0.4;
+    if (willStep) {
+      t(() => {
+        if (!toyCleanup || !canIdle()) return;
+        clearPose();
+        // Small nudge walk
+        const curX = parseFloat(anchor.style.left);
+        const stepDir = bx < 96 ? -1 : 1;
+        const stepDist = 20 + Math.random() * 15;
+        walking = true; anchor.classList.add('walking');
+        anchor.classList.toggle('facing-left', stepDir < 0);
+        const generation = ++walkGeneration;
+        const target = Math.max(0, Math.min(Math.max(0, innerWidth - 192), curX + stepDir * stepDist));
+        const started = performance.now();
+        function frame(now) {
+          if (generation !== walkGeneration || !walking || !toyCleanup) { if (walking) stopWalk(); return; }
+          const p = Math.min(1, (now - started) / 600);
+          rememberPixels(curX + (target - curX) * p, parseFloat(anchor.style.top));
+          position();
+          if (p < 1) requestAnimationFrame(frame); else stopWalk();
+        }
+        requestAnimationFrame(frame);
+      }, 1500);
+    }
+
+    // Phase 4: ball fades out
+    t(() => {
+      if (!toyCleanup) return;
+      ball.style.opacity = '0';
+      ball.style.transition = (ball.style.transition ? ball.style.transition + ',' : '') + 'opacity 0.8s ease-out';
+    }, 2800 + Math.random() * 400);
+
+    // Phase 5: cleanup
+    t(() => {
+      done = true;
+      toyCleanup = null;
+      clearPose();
+      if (ball.isConnected) ball.remove();
+    }, 3800 + Math.random() * 400);
+
+    toyCleanup = () => {
+      if (done) return;
+      done = true;
+      timers.forEach(clearTimeout);
+      clearPose();
+      if (ball.isConnected) ball.remove();
+    };
+  }
+
+  function playButterfly() {
+    if (!canIdle() || motion.matches) return;
+    const { ax, ay } = toyPosition();
+    const bfW = 28, bfH = 20;
+    // Start near kitten head
+    const startRelX = 60 + Math.random() * 72;
+    const startRelY = -(20 + Math.random() * 20);
+    const bf = document.createElement('div');
+    bf.className = 'toy-butterfly';
+    bf.setAttribute('aria-hidden', 'true');
+    bf.style.cssText = `left:${startRelX}px;top:${startRelY}px`;
+    anchor.append(bf);
+
+    let done = false;
+    const timers = [];
+    function t(fn, ms) { const id = setTimeout(fn, ms); timers.push(id); return id; }
+
+    // Kitten head-tilt look
+    const lookCls = startRelX < 96 ? 'look-left' : 'look';
+    activePose = lookCls; anchor.classList.add(lookCls);
+
+    // Butterfly flutters in a wandering path using CSS animation key driven by JS
+    let phase = 0;
+    const phases = [
+      { dx: (Math.random() - 0.5) * 60, dy: -15 - Math.random() * 20 },
+      { dx: (Math.random() - 0.5) * 60, dy: -10 - Math.random() * 15 },
+      { dx: (Math.random() - 0.5) * 40, dy: 5 + Math.random() * 10 },
+    ];
+    let curX = startRelX, curY = startRelY;
+
+    function flutter() {
+      if (!toyCleanup || phase >= phases.length) return;
+      const { dx, dy } = phases[phase++];
+      curX = Math.max(-20, Math.min(210, curX + dx));
+      curY = Math.max(-60, Math.min(60, curY + dy));
+      bf.style.left = curX + 'px'; bf.style.top = curY + 'px';
+      bf.style.transition = `left ${0.7 + Math.random() * 0.4}s ease-in-out, top ${0.6 + Math.random() * 0.3}s ease-in-out`;
+    }
+    flutter();
+    t(flutter, 800 + Math.random() * 200);
+    t(flutter, 1600 + Math.random() * 300);
+
+    // Kitten reaches paw
+    const reachTime = 1200 + Math.random() * 400;
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+      activePose = 'twitch'; anchor.classList.add('twitch');
+    }, reachTime);
+
+    // Butterfly flies away and fades
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+      const lookAway = curX < 96 ? 'look-left' : 'look';
+      activePose = lookAway; anchor.classList.add(lookAway);
+      const flyX = curX + (Math.random() < 0.5 ? -80 : 80);
+      const flyY = curY - 60;
+      bf.style.left = flyX + 'px'; bf.style.top = flyY + 'px';
+      bf.style.opacity = '0';
+      bf.style.transition = `left 1s ease-in, top 0.8s ease-in, opacity 0.9s ease-in`;
+    }, 2600 + Math.random() * 400);
+
+    t(() => {
+      done = true; toyCleanup = null;
+      clearPose();
+      if (bf.isConnected) bf.remove();
+    }, 3800 + Math.random() * 400);
+
+    toyCleanup = () => {
+      if (done) return; done = true;
+      timers.forEach(clearTimeout); clearPose();
+      if (bf.isConnected) bf.remove();
+    };
+  }
+
+  function playHeart() {
+    if (!canIdle() || motion.matches) return;
+    const { ax, ay } = toyPosition();
+    // Heart appears above-left of kitten
+    const relX = 40 + Math.random() * 60;
+    const relY = -(30 + Math.random() * 20);
+
+    const heart = document.createElement('div');
+    heart.className = 'toy-heart';
+    heart.setAttribute('aria-hidden', 'true');
+    heart.style.cssText = `left:${relX}px;top:${relY}px`;
+    anchor.append(heart);
+
+    let done = false;
+    const timers = [];
+    function t(fn, ms) { const id = setTimeout(fn, ms); timers.push(id); return id; }
+
+    // Kitten looks at heart
+    activePose = 'look'; anchor.classList.add('look');
+
+    // Kitten reaches paw
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+      activePose = 'twitch'; anchor.classList.add('twitch');
+    }, 900 + Math.random() * 200);
+
+    // Heart bursts into sparkles
+    t(() => {
+      if (!toyCleanup) return;
+      heart.classList.add('toy-heart-burst');
+      // Create sparkle particles
+      for (let i = 0; i < 4; i++) {
+        const sp = document.createElement('span');
+        sp.className = 'toy-sparkle';
+        sp.textContent = ['✦', '✧', '♡', '·'][i];
+        sp.style.cssText = `--sx:${(Math.random() - 0.5) * 40}px;--sy:${-(20 + Math.random() * 30)}px;animation-delay:${i * 0.08}s`;
+        heart.append(sp);
+      }
+    }, 1500 + Math.random() * 200);
+
+    // Clear reaction, fade out
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+      heart.style.opacity = '0';
+      heart.style.transition = 'opacity 0.6s ease-out';
+    }, 2500);
+
+    t(() => {
+      done = true; toyCleanup = null;
+      clearPose();
+      if (heart.isConnected) heart.remove();
+    }, 3300);
+
+    toyCleanup = () => {
+      if (done) return; done = true;
+      timers.forEach(clearTimeout); clearPose();
+      if (heart.isConnected) heart.remove();
+    };
+  }
+
+  function tryStartToy() {
+    if (!canIdle() || motion.matches) return;
+    // Pick a toy, avoiding the same one twice in a row
+    const toys = ['yarn', 'butterfly', 'heart'];
+    const available = lastToyKind ? toys.filter(t => t !== lastToyKind) : toys;
+    const kind = available[Math.floor(Math.random() * available.length)];
+    lastToyKind = kind;
+    if (kind === 'yarn') playYarn();
+    else if (kind === 'butterfly') playButterfly();
+    else playHeart();
+  }
   function schedule() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -166,7 +423,8 @@
           idleCount++;
           const n = Math.random();
           // Choose one action per tick; a periodic walk must not overlap a pose.
-          if (idleCount % 6 === 0) walk();
+          if (idleCount % 6 === 0 && idleCount % 18 !== 0) walk();
+          else if (idleCount % 18 === 0) { toyCount++; tryStartToy(); }
           else if (n < .42) pose('blink', 650);
           else if (n < .62) pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
           else if (n < .78) pose('twitch', 600);
@@ -240,7 +498,7 @@
     anchor.append(kitten, panel, bubble, reaction); root.append(anchor); document.documentElement.append(host); render();
     kitten.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
-      stopWalk(); clearPose(); endReaction(); position();
+      stopWalk(); clearPose(); endReaction(); cancelToy(); position();
       dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, left: parseFloat(anchor.style.left), top: parseFloat(anchor.style.top) }; moved = false;
       kitten.setPointerCapture(e.pointerId);
     });
@@ -271,21 +529,21 @@
       clearTimeout(clickTimer);
       if (moved) { moved = false; return; }
       panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
-      callbacks['Pet']();
+      cancelToy(); callbacks['Pet']();
     });
     document.addEventListener('pointerdown', e => { if (!e.composedPath().includes(host)) { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); } }, true);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); kitten.focus(); } });
     document.addEventListener('keydown', () => { bubble.hidden = true; }, true);
     addEventListener('resize', () => {
-      stopWalk(); clearPose();
+      stopWalk(); clearPose(); cancelToy();
       stopDrag();
       position();
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { stopWalk(); stopDrag(); clearPose(); bubble.hidden = true; }
+      if (document.hidden) { stopWalk(); stopDrag(); clearPose(); cancelToy(); bubble.hidden = true; }
       anchor.classList.toggle('paused', document.hidden);
     });
-    motion.addEventListener('change', () => { if (motion.matches) { stopWalk(); clearPose(); } });
+    motion.addEventListener('change', () => { if (motion.matches) { stopWalk(); clearPose(); cancelToy(); } });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
       const patch = {};
@@ -294,7 +552,7 @@
       // may still update name, happiness and visibility without moving the kitten.
       if (dragging || patch.position?.writer === positionWriter) delete patch.position;
       else if ('position' in patch) stopWalk(false);
-      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); }
+      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); cancelToy(); }
       state = clean({ ...state, ...patch }); render();
     });
     anchor.classList.toggle('paused', document.hidden);
