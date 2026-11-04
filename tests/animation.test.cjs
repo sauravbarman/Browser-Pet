@@ -247,9 +247,14 @@ async function scenarios(reducedOnly) {
     await settled();
   });
   await scenario('care, rename and visibility remain usable', async p => {
+    const sleepBtn = [...p.root.querySelectorAll('.actions button')].find(b => b.textContent === 'Sleep');
+    const wakeBtn = [...p.root.querySelectorAll('.actions button')].find(b => b.textContent === 'Wake up');
+    check(sleepBtn.style.display !== 'none' && wakeBtn.style.display === 'none', 'Initial Sleep button visibility wrong');
     p.action('Pet'); p.action('Feed'); check(p.h.data.happiness === 93, 'Happiness actions failed');
     p.action('Sleep'); check(p.style('.sprite').backgroundPositionY === '-576px', 'Sleep row wrong');
+    check(sleepBtn.style.display === 'none' && wakeBtn.style.display !== 'none', 'Sleeping Wake up button visibility wrong');
     p.action('Wake up'); check(p.style('.sprite-z').display === 'none', 'Wake Z remains');
+    check(sleepBtn.style.display !== 'none' && wakeBtn.style.display === 'none', 'Woken Sleep button visibility wrong');
     p.action('Rename'); const form = p.root.querySelector('.rename'); form.querySelector('input').value = 'Mochi';
     form.dispatchEvent(new p.w.Event('submit', { cancelable: true }));
     check(p.h.data.name === 'Mochi', 'Rename not saved');
@@ -313,5 +318,11 @@ test('MV3 permissions and all local manifest resources remain valid', () => {
   for (const file of [...manifest.content_scripts.flatMap(c => c.js),
     ...manifest.web_accessible_resources.flatMap(r => r.resources), manifest.action.default_popup]) {
     assert.ok(fs.existsSync(path.join(project, file)), file);
+  }
+  require(path.join(project, 'messages.js'));
+  assert.ok(Array.isArray(globalThis.LOVEBUG_MESSAGES) && globalThis.LOVEBUG_MESSAGES.length > 0);
+  assert.ok(globalThis.LOVEBUG_TIME_MESSAGES && typeof globalThis.LOVEBUG_TIME_MESSAGES === 'object');
+  for (const period of ['morning', 'afternoon', 'evening', 'night']) {
+    assert.ok(Array.isArray(globalThis.LOVEBUG_TIME_MESSAGES[period]) && globalThis.LOVEBUG_TIME_MESSAGES[period].length > 0);
   }
 });

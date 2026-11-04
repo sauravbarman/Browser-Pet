@@ -8,6 +8,7 @@
   let dragging = null, moved = false, walking = false, walkFrame = null, walkGeneration = 0;
   let activePose = null, poseTimer, reactionKind = null;
   let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), previousRandomMessage, idleCount = 0;
+  let actionButtons = {}, clickTimer = null;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   // Identify our own position notifications so a delayed storage echo cannot
   // rewind a newer drag/walk. Other tabs still receive and apply our position.
@@ -85,6 +86,10 @@
     title.textContent = state.name; status.textContent = `♥ ${state.happiness}/100 · ${state.sleeping ? 'Dreaming of you' : state.happiness >= 90 ? 'Feeling adored' : 'Happy to be here'}`;
     meter.style.width = `${state.happiness}%`;
     kitten.setAttribute('aria-label', `${state.name}, ${state.sleeping ? 'sleeping kitten. Wake and open menu' : 'open kitten menu'}`);
+    if (actionButtons['Sleep'] && actionButtons['Wake up']) {
+      actionButtons['Sleep'].style.display = state.sleeping ? 'none' : '';
+      actionButtons['Wake up'].style.display = state.sleeping ? '' : 'none';
+    }
     if (state.hidden) { panel.hidden = bubble.hidden = true; }
     position();
   }
@@ -126,9 +131,26 @@
   }
   function randomMessage() {
     const messages = globalThis.LOVEBUG_MESSAGES;
-    if (!Array.isArray(messages) || messages.length === 0) return;
-    const choices = messages.length > 1 ? messages.filter(message => message !== previousRandomMessage) : messages;
-    const available = choices.length ? choices : messages;
+    const timePools = globalThis.LOVEBUG_TIME_MESSAGES;
+    let pool = Array.isArray(messages) ? messages : [];
+
+    // When time pools are available and not in test harness, weave in contextual time-of-day notes
+    if (timePools && typeof timePools === 'object' && !globalThis.harness) {
+      const hour = new Date().getHours();
+      const timeKey = (hour >= 5 && hour < 12) ? 'morning'
+        : (hour >= 12 && hour < 17) ? 'afternoon'
+        : (hour >= 17 && hour < 21) ? 'evening'
+        : 'night';
+      const timeSpecific = Array.isArray(timePools[timeKey]) ? timePools[timeKey] : [];
+      if (timeSpecific.length > 0) {
+        // ~50% chance for time-of-day care notes, ~50% for anytime romantic notes
+        pool = (Math.random() < .5 || pool.length === 0) ? timeSpecific : pool;
+      }
+    }
+
+    if (!Array.isArray(pool) || pool.length === 0) return;
+    const choices = pool.length > 1 ? pool.filter(message => message !== previousRandomMessage) : pool;
+    const available = choices.length ? choices : pool;
     return available[Math.floor(Math.random() * available.length)];
   }
   function schedule() {
@@ -205,7 +227,13 @@
       'Rename': () => { rename.hidden = !rename.hidden; input.value = state.name; position(); if (!rename.hidden) input.focus(); },
       'Hide': () => save({ hidden: true })
     };
-    for (const [label, callback] of Object.entries(callbacks)) { const button = el('button', '', label); button.type = 'button'; button.addEventListener('click', callback); actions.append(button); }
+    for (const [label, callback] of Object.entries(callbacks)) {
+      const button = el('button', label === 'Hide' ? 'action-hide' : '', label);
+      button.type = 'button';
+      button.addEventListener('click', callback);
+      actions.append(button);
+      actionButtons[label] = button;
+    }
     panel.append(title, status, track, actions, rename); bubble = el('div', 'bubble'); bubble.hidden = true; reaction = el('div', 'reaction');
     reaction.setAttribute('aria-hidden', 'true');
     const food = el('div', 'food', '● ● ●'); food.setAttribute('aria-hidden', 'true'); kitten.append(food);
@@ -229,9 +257,21 @@
     kitten.addEventListener('pointerup', release); kitten.addEventListener('pointercancel', () => { moved = true; release(); }); kitten.addEventListener('lostpointercapture', release);
     kitten.addEventListener('click', e => {
       if (moved && e.detail !== 0) { moved = false; return; }
-      stopWalk(); clearPose();
-      if (state.sleeping) save({ sleeping: false });
-      panel.hidden = !panel.hidden; bubble.hidden = true; kitten.setAttribute('aria-expanded', String(!panel.hidden)); position();
+      if (e.detail > 1) return;
+      clearTimeout(clickTimer);
+      const openMenu = () => {
+        stopWalk(); clearPose();
+        if (state.sleeping) save({ sleeping: false });
+        panel.hidden = !panel.hidden; bubble.hidden = true; kitten.setAttribute('aria-expanded', String(!panel.hidden)); position();
+      };
+      if (e.detail === 0) { openMenu(); return; }
+      clickTimer = setTimeout(openMenu, 220);
+    });
+    kitten.addEventListener('dblclick', e => {
+      clearTimeout(clickTimer);
+      if (moved) { moved = false; return; }
+      panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
+      callbacks['Pet']();
     });
     document.addEventListener('pointerdown', e => { if (!e.composedPath().includes(host)) { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); } }, true);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); kitten.focus(); } });
