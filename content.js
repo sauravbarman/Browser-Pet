@@ -3,7 +3,16 @@
   if (globalThis.__littleLovebug) return;
   globalThis.__littleLovebug = true;
   const PET_SIZE = 192; // Sprite cell; the visible sitting kitten is about 160px tall.
-  const defaults = { name: 'Lovebug', happiness: 80, hidden: false, sleeping: false, position: null };
+  const defaults = {
+    name: 'Lovebug',
+    happiness: 80,
+    hidden: false,
+    sleeping: false,
+    position: null,
+    surpriseGifts: true,
+    giftFrequency: 'normal',
+    giftMessages: true
+  };
   let state = { ...defaults }, host, root, anchor, kitten, panel, bubble, reaction, title, meter, status;
   let dragging = null, moved = false, walking = false, walkFrame = null, walkGeneration = 0;
   let activePose = null, poseTimer, reactionKind = null;
@@ -89,15 +98,21 @@
   }
 
   function clean(data) {
-    return { name: typeof data.name === 'string' ? data.name.trim().slice(0, 30) || 'Lovebug' : 'Lovebug',
+    return {
+      name: typeof data.name === 'string' ? data.name.trim().slice(0, 30) || 'Lovebug' : 'Lovebug',
       happiness: Number.isFinite(data.happiness) ? Math.max(0, Math.min(100, data.happiness)) : 80,
-      hidden: data.hidden === true, sleeping: data.sleeping === true,
-      position: data.position && Number.isFinite(data.position.x) && Number.isFinite(data.position.y) ? { x: data.position.x, y: data.position.y } : null };
+      hidden: data.hidden === true,
+      sleeping: data.sleeping === true,
+      position: data.position && Number.isFinite(data.position.x) && Number.isFinite(data.position.y) ? { x: data.position.x, y: data.position.y } : null,
+      surpriseGifts: data.surpriseGifts !== false,
+      giftFrequency: ['rare', 'normal', 'frequent'].includes(data.giftFrequency) ? data.giftFrequency : 'normal',
+      giftMessages: data.giftMessages !== false
+    };
   }
   async function save(patch) {
     // Capture the visible walk position before rendering any changed preference.
     if (stopWalk(false)) patch = { position: state.position, ...patch };
-    clearPose(); cancelToy(); cancelPeekaboo(true);
+    clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift();
     state = clean({ ...state, ...patch }); render();
     await store(patch);
   }
@@ -182,7 +197,7 @@
     }
   }
   function say(text) {
-    if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind || peekaboo) return false;
+    if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind || peekaboo || currentGift) return false;
     bubble.textContent = text; bubble.hidden = false; position();
     clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 7000);
     return true;
@@ -220,7 +235,12 @@
   }
   function canIdle() {
     return !state.hidden && !state.sleeping && !document.hidden && !motion.matches &&
-      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !peekaboo && !typing();
+      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !peekaboo && !currentGift && !typing();
+  }
+  function canGift() {
+    return !state.hidden && !state.sleeping && !document.hidden &&
+      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !peekaboo && !currentGift &&
+      !typing() && !Boolean(document.fullscreenElement);
   }
   function randomMessage() {
     const messages = globalThis.LOVEBUG_MESSAGES;
@@ -532,6 +552,7 @@
   function shouldPeekaboo() {
     if (globalThis.harness && !globalThis.harness.allowPeekaboo) return false;
     if (Date.now() - lastPeekabooTime < peekabooCooldown) return false;
+    if (Date.now() - lastGiftTime < 60000) return false;
     return getPeekabooTarget() !== null;
   }
 
@@ -716,6 +737,353 @@
   }
   globalThis.__lovebugPeekaboo = tryStartPeekaboo;
 
+  // ── Feature 6: Surprise Gifts 🎁 ──────────────────────────────────────
+  let currentGift = null;
+  let lastGiftTime = Date.now();
+  let lastGiftKind = null;
+  const GIFT_KINDS = ['flower', 'heart', 'star', 'present'];
+
+  function getGiftInterval(frequency) {
+    if (frequency === 'frequent') return (15 + Math.random() * 10) * 60 * 1000;
+    if (frequency === 'rare') return (35 + Math.random() * 10) * 60 * 1000;
+    return (25 + Math.random() * 10) * 60 * 1000; // 'normal' default (25-35 min)
+  }
+  let giftCooldown = getGiftInterval(defaults.giftFrequency);
+
+  function shouldGift() {
+    if (state.surpriseGifts === false) return false;
+    if (globalThis.harness && !globalThis.harness.allowGift) return false;
+    if (Date.now() - lastGiftTime < giftCooldown) return false;
+    if (Date.now() - lastPeekabooTime < 60000) return false;
+    return canGift();
+  }
+
+  function pickGiftMessage(kind) {
+    const pools = globalThis.LOVEBUG_GIFT_MESSAGES;
+    if (!pools || typeof pools !== 'object') return null;
+    const pool = Array.isArray(pools[kind]) ? pools[kind] : [];
+    if (pool.length === 0) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function cancelGift() {
+    if (!currentGift) return false;
+    const g = currentGift;
+    currentGift = null;
+    g.timers.forEach(clearTimeout);
+    clearPose();
+    if (g.element && g.element.isConnected) {
+      g.element.remove();
+    }
+    if (g.particles) {
+      g.particles.forEach(p => { if (p.isConnected) p.remove(); });
+    }
+    anchor.classList.remove('gift-active', 'gift-flower', 'gift-heart', 'gift-star', 'gift-present');
+    if (g.bubbleShown) {
+      clearTimeout(bubbleTimer);
+      bubble.hidden = true;
+    }
+    return true;
+  }
+
+  function buildFlowerElement() {
+    const wrap = el('div', 'surprise-gift gift-flower');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `
+      <path d="M12 14 C12 18 10 21 8 22 M11 17 C13 16 15 14 15 14" stroke="#93c5a7" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      <g fill="#fbcfe8" stroke="#f472b6" stroke-width="0.8">
+        <circle cx="12" cy="7" r="3.5"/>
+        <circle cx="7.5" cy="10.5" r="3.5"/>
+        <circle cx="9.2" cy="15.5" r="3.5"/>
+        <circle cx="14.8" cy="15.5" r="3.5"/>
+        <circle cx="16.5" cy="10.5" r="3.5"/>
+      </g>
+      <circle cx="12" cy="11.8" r="3" fill="#fef08a" stroke="#fde047" stroke-width="0.8"/>
+    `;
+    wrap.append(svg);
+    return wrap;
+  }
+
+  function buildHeartElement() {
+    const wrap = el('div', 'surprise-gift gift-heart');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="lb-heart-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffb3d1"/>
+          <stop offset="100%" stop-color="#f472b6"/>
+        </linearGradient>
+      </defs>
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="url(#lb-heart-grad)" stroke="#f472b6" stroke-width="1"/>
+      <path d="M6 7 Q8 5 10 6" stroke="rgba(255,255,255,0.75)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    `;
+    wrap.append(svg);
+    return wrap;
+  }
+
+  function buildStarElement() {
+    const wrap = el('div', 'surprise-gift gift-star');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="lb-star-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#fef08a"/>
+          <stop offset="100%" stop-color="#facc15"/>
+        </linearGradient>
+      </defs>
+      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="url(#lb-star-grad)" stroke="#eab308" stroke-width="1" stroke-linejoin="round"/>
+      <circle cx="9" cy="8" r="1.1" fill="#ffffff" opacity="0.85"/>
+    `;
+    wrap.append(svg);
+    return wrap;
+  }
+
+  function buildPresentElement() {
+    const wrap = el('div', 'surprise-gift gift-present');
+    const box = el('div', 'gift-box');
+    const lid = el('div', 'gift-box-lid');
+    const bow = el('div', 'gift-bow');
+    lid.append(bow);
+    const base = el('div', 'gift-box-base');
+    const surprise = el('div', 'gift-surprise-item');
+    surprise.setAttribute('aria-hidden', 'true');
+    box.append(lid, base, surprise);
+    wrap.append(box);
+    return wrap;
+  }
+
+  function tryStartGift(forcedKind) {
+    if (state.surpriseGifts === false && !forcedKind) return;
+    if (forcedKind) {
+      stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift();
+    }
+    if (!canGift()) return;
+
+    // Pick kind avoiding immediate repeat
+    const available = lastGiftKind ? GIFT_KINDS.filter(k => k !== lastGiftKind) : GIFT_KINDS;
+    const kind = forcedKind || available[Math.floor(Math.random() * available.length)];
+    lastGiftKind = kind;
+    lastGiftTime = Date.now();
+    giftCooldown = getGiftInterval(state.giftFrequency);
+
+    const timers = [];
+    function gt(fn, ms) {
+      const id = setTimeout(() => {
+        if (!currentGift) return;
+        fn();
+      }, ms);
+      timers.push(id);
+      return id;
+    }
+
+    const giftRecord = {
+      kind,
+      timers,
+      element: null,
+      particles: [],
+      bubbleShown: false,
+      interacted: false
+    };
+    currentGift = giftRecord;
+
+    // Look down / toward paws
+    activePose = 'look';
+    anchor.classList.add('look', 'gift-active', 'gift-' + kind);
+
+    // Build gift element
+    let giftEl;
+    if (kind === 'flower') giftEl = buildFlowerElement();
+    else if (kind === 'heart') giftEl = buildHeartElement();
+    else if (kind === 'star') giftEl = buildStarElement();
+    else giftEl = buildPresentElement();
+
+    giftEl.setAttribute('role', 'button');
+    giftEl.setAttribute('tabindex', '0');
+    const labels = {
+      flower: `A tiny flower from ${state.name}. Click to accept 🌸`,
+      heart: `A tiny heart from ${state.name}. Click to accept 💗`,
+      star: `A shining star from ${state.name}. Click to accept ⭐`,
+      present: `A wrapped gift from ${state.name}. Click to open 🎁`
+    };
+    giftEl.setAttribute('aria-label', labels[kind] || 'Gift from Lovebug');
+
+    // Appearance
+    gt(() => {
+      if (!currentGift) return;
+      anchor.append(giftEl);
+      giftRecord.element = giftEl;
+    }, motion.matches ? 0 : 350);
+
+    // Presenting movement & particles
+    gt(() => {
+      if (!currentGift) return;
+      clearPose();
+      if (!motion.matches) {
+        giftEl.classList.add('gift-presented');
+        if (kind === 'present') giftEl.classList.add('gift-wiggle');
+        pose('twitch', 600);
+      }
+
+      // Ambient particles for heart and star
+      if (!motion.matches) {
+        if (kind === 'heart') {
+          for (let i = 0; i < 3; i++) {
+            const h = el('span', 'gift-mini-heart', ['♡', '♥', '♡'][i]);
+            h.style.setProperty('--mx', `${(i - 1) * 14}px`);
+            h.style.animationDelay = `${i * 0.5}s`;
+            giftEl.append(h);
+            giftRecord.particles.push(h);
+          }
+        } else if (kind === 'star') {
+          for (let i = 0; i < 3; i++) {
+            const s = el('span', 'gift-sparkle-particle', ['✦', '✧', '✦'][i]);
+            s.style.top = `${-8 + (i % 2) * 14}px`;
+            s.style.left = `${(i - 1) * 16 + 6}px`;
+            s.style.animationDelay = `${i * 0.4}s`;
+            giftEl.append(s);
+            giftRecord.particles.push(s);
+          }
+        }
+      }
+    }, motion.matches ? 50 : 750);
+
+    // Affectionate message bubble
+    gt(() => {
+      if (!currentGift) return;
+      if (state.giftMessages !== false) {
+        const msg = pickGiftMessage(kind);
+        if (msg && panel.hidden && !dragging && !typing()) {
+          bubble.textContent = msg;
+          bubble.hidden = false;
+          position();
+          giftRecord.bubbleShown = true;
+        }
+      }
+    }, motion.matches ? 100 : 1100);
+
+    function fadeOutAndClose(delay = 800) {
+      if (!currentGift) return;
+      if (giftEl && giftEl.isConnected) {
+        giftEl.classList.add('gift-fade-out');
+      }
+      if (giftRecord.bubbleShown) {
+        bubble.hidden = true;
+      }
+      gt(() => {
+        cancelGift();
+      }, delay);
+    }
+
+    // Interaction handler
+    function onInteract(e) {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (!currentGift || currentGift.interacted) return;
+      currentGift.interacted = true;
+
+      if (kind === 'present') {
+        giftEl.classList.remove('gift-wiggle');
+        giftEl.classList.add('opened');
+        const surprises = ['🌸', '💖', '⭐'];
+        const chosen = surprises[Math.floor(Math.random() * surprises.length)];
+        const surpriseEl = giftEl.querySelector('.gift-surprise-item');
+        if (surpriseEl) {
+          surpriseEl.textContent = chosen;
+        }
+
+        if (!motion.matches) {
+          const syms = ['✦', '✧', '♡', '·'];
+          const dirs = [
+            { x: -18, y: -26 },
+            { x: 18, y: -28 },
+            { x: -22, y: -12 },
+            { x: 20, y: -14 }
+          ];
+          dirs.forEach((dir, i) => {
+            const p = el('span', 'gift-pop-particle', syms[i]);
+            p.style.setProperty('--px', `${dir.x}px`);
+            p.style.setProperty('--py', `${dir.y}px`);
+            giftEl.append(p);
+            giftRecord.particles.push(p);
+          });
+        }
+
+        clearPose();
+        react('petting');
+
+        if (state.giftMessages !== false) {
+          const revMsg = pickGiftMessage('opened');
+          if (revMsg) {
+            bubble.textContent = revMsg;
+            bubble.hidden = false;
+            position();
+            giftRecord.bubbleShown = true;
+          }
+        }
+
+        gt(() => {
+          fadeOutAndClose();
+        }, motion.matches ? 2000 : 3800);
+      } else {
+        giftEl.classList.add('accepted');
+        clearPose();
+        pose('twitch', 600);
+
+        if (!motion.matches) {
+          const syms = ['♡', '✧', '✦'];
+          const dirs = [{ x: -14, y: -20 }, { x: 14, y: -20 }, { x: 0, y: -26 }];
+          dirs.forEach((dir, i) => {
+            const p = el('span', 'gift-pop-particle', syms[i]);
+            p.style.setProperty('--px', `${dir.x}px`);
+            p.style.setProperty('--py', `${dir.y}px`);
+            giftEl.append(p);
+            giftRecord.particles.push(p);
+          });
+        }
+
+        if (state.giftMessages !== false) {
+          const accMsg = pickGiftMessage('accepted');
+          if (accMsg) {
+            bubble.textContent = accMsg;
+            bubble.hidden = false;
+            position();
+            giftRecord.bubbleShown = true;
+          }
+        }
+
+        gt(() => {
+          fadeOutAndClose();
+        }, motion.matches ? 1500 : 2600);
+      }
+    }
+
+    giftEl.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+    });
+    giftEl.addEventListener('click', onInteract);
+    giftEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        onInteract(e);
+      }
+    });
+
+    // Expiration timer if ignored (12.5 seconds)
+    gt(() => {
+      if (!currentGift || currentGift.interacted) return;
+      fadeOutAndClose();
+    }, 12500);
+  }
+
+  globalThis.__lovebugGift = tryStartGift;
+
   function schedule() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -725,7 +1093,9 @@
           const message = randomMessage();
           if (message !== undefined && say(message)) { previousRandomMessage = message; lastMessage = Date.now(); }
         }
-        if (canIdle()) {
+        if (shouldGift()) {
+          tryStartGift();
+        } else if (canIdle()) {
           idleCount++;
           const n = Math.random();
           // Choose one action per tick; a periodic walk must not overlap a pose.
@@ -814,7 +1184,7 @@
     kitten.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       const wasPeeking = Boolean(peekaboo);
-      stopWalk(); clearPose(); endReaction(); cancelToy(); cancelPeekaboo(true);
+      stopWalk(); clearPose(); endReaction(); cancelToy(); cancelPeekaboo(true); cancelGift();
       if (wasPeeking) position();
       dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, left: parseFloat(anchor.style.left), top: parseFloat(anchor.style.top) }; moved = false;
       kitten.setPointerCapture(e.pointerId);
@@ -835,7 +1205,7 @@
       if (e.detail > 1) return;
       clearTimeout(clickTimer);
       const openMenu = () => {
-        stopWalk(); clearPose(); cancelPeekaboo(true);
+        stopWalk(); clearPose(); cancelPeekaboo(true); cancelGift();
         if (state.sleeping) save({ sleeping: false });
         panel.hidden = !panel.hidden; bubble.hidden = true; kitten.setAttribute('aria-expanded', String(!panel.hidden)); position();
       };
@@ -846,19 +1216,19 @@
       clearTimeout(clickTimer);
       if (moved) { moved = false; return; }
       panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
-      cancelToy(); cancelPeekaboo(true); callbacks['Pet']();
+      cancelToy(); cancelPeekaboo(true); cancelGift(); callbacks['Pet']();
     });
     document.addEventListener('pointerdown', e => { if (!e.composedPath().includes(host)) { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); } }, true);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); kitten.focus(); } });
     document.addEventListener('keydown', () => { bubble.hidden = true; }, true);
     addEventListener('resize', () => {
-      stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true);
+      stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift();
       stopDrag();
       position();
     });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        stopWalk(); stopDrag(); clearPose(); cancelToy(); cancelPeekaboo(true); bubble.hidden = true;
+        stopWalk(); stopDrag(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift(); bubble.hidden = true;
         // Pause dream bubbles when tab is hidden
         clearTimeout(dreamBubbleTimer); dreamBubbleTimer = null;
       } else if (state.sleeping) {
@@ -869,7 +1239,7 @@
     });
     motion.addEventListener('change', () => {
       if (motion.matches) {
-        stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true);
+        stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift();
         // Clear pose change timer when motion is reduced
         clearTimeout(sleepPoseTimer); sleepPoseTimer = null;
         // Clear dream bubbles when reduced motion is enabled
@@ -889,7 +1259,7 @@
       // may still update name, happiness and visibility without moving the kitten.
       if (dragging || patch.position?.writer === positionWriter) delete patch.position;
       else if ('position' in patch) stopWalk(false);
-      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); }
+      if (patch.hidden || patch.sleeping || patch.surpriseGifts === false) { stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift(); }
       state = clean({ ...state, ...patch }); render();
     });
     anchor.classList.toggle('paused', document.hidden);

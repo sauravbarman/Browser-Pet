@@ -29,6 +29,7 @@ Everything runs completely locally within your browser. There are **zero trackin
 
 | Feature | Description |
 |---|---|
+| 🎁 **Surprise Gifts** | Occasionally brings the user tiny presents (flower 🌸, heart 💗, star ⭐, or interactive wrapped present 🎁) with sweet romantic messages. |
 | 🐾 **Interactive Idle Toys** | Plays with a rolling yarn ball, watches a fluttering butterfly, or pops a floating heart balloon with sparkling particles. |
 | 🙈 **Edge Peekaboo Mode** | When stationed near viewport edges, playfully ducks behind the browser border and peeks back out to surprise you! |
 | 💖 **Double-Click Quick-Pet** | Double-click or rapid-tap the kitten anywhere for an instant nuzzle reaction and rising hearts without opening menus. |

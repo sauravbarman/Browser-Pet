@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-11-05
+
+### Added
+* **Surprise Gifts 🎁💗 (Feature 6)**:
+  * The kitten occasionally brings the user tiny presents accompanied by sweet romantic messages.
+  * **Four Adorable Gift Types**:
+    * **Tiny Flower 🌸**: Discovers a pastel pink flower, holds it between paws, and presents it with gentle sway.
+    * **Floating Heart 💗**: Presents a tiny layered heart that gently floats upward with rising mini-hearts.
+    * **Shining Star ⭐**: Discovers a twinkling golden star with a soft pulse and radiant sparkle particles.
+    * **Wrapped Present 🎁**: Brings a tiny pastel gift box with ribbon and bow that playfully wiggles.
+  * **Interactive Gift Opening**:
+    * Clicking or keyboard-activating (`Enter` / `Space`) the wrapped present plays a gentle lid-opening animation, revealing a randomly selected surprise (flower, heart, or star), bursting sparkle particles, kitten happy reaction, and affectionate reveal message.
+    * Clicking flower, heart, or star triggers warm kitten acceptance reaction and sweet thank-you note.
+    * Proper event handling (`stopPropagation`) prevents gift interactions from triggering kitten dragging or opening the care menu.
+  * **Romantic Gift Messages**: Over 30 warm, romantic messages across dedicated gift categories in [`messages.js`](messages.js).
+  * **Safe Expiration & Zero Penalty**: Ignored gifts gently fade away after 12.5 seconds without decreasing happiness or scolding.
+  * **Surprise Gifts Settings**: Added settings in toolbar popup (`popup.html` / `popup.js`) to enable/disable gifts, set frequency (Rare, Normal, Frequent), and toggle romantic messages, stored in `chrome.storage.local` with cross-tab synchronization.
+  * **Reduced Motion Support**: Conforms to `prefers-reduced-motion: reduce` with static accessible presentation and zero flashing.
+  * **Automated Test Suite**: Added [`tests/surprise-gifts.test.cjs`](tests/surprise-gifts.test.cjs) covering rendering, interactions, keyboard accessibility, safe interruptions, settings, and reduced motion.
+
+---
+
 ## [1.2.0] - 2026-11-05
 
 ### Added

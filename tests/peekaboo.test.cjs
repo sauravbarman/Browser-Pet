@@ -247,7 +247,7 @@ test('Feature 3: Peekaboo Mode scenarios in Chromium', { skip: !browser }, () =>
   const file = path.join(temp, 'test.html');
   fs.writeFileSync(file, html);
   const run = spawnSync(browser, [
-    '--headless', '--disable-gpu', '--no-first-run',
+    '--headless', '--no-sandbox', '--disable-gpu', '--no-first-run',
     '--user-data-dir=' + path.join(temp, 'profile'), '--virtual-time-budget=15000',
     '--dump-dom', new URL('file:///' + file.replaceAll('\\', '/')).href
   ], { encoding: 'utf8', timeout: 45000, maxBuffer: 5000000 });

@@ -11,8 +11,8 @@ const { spawnSync } = require('node:child_process');
 const project = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(project, file), 'utf8');
 const browser = [process.env.LOVEBUG_TEST_BROWSER,
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/usr/bin/chromium', '/usr/bin/google-chrome'
 ].find(file => file && fs.existsSync(file));
@@ -295,7 +295,7 @@ for (const reduced of [false, true]) {
       'window.assets=' + JSON.stringify(assets) + ';window.bootstrapText=' + JSON.stringify(bootstrap.toString()) + ';' +
       '(' + scenarios.toString() + ')(' + reduced + ').then(results=>{document.getElementById("results").textContent=JSON.stringify({ok:true,results})}).catch(error=>{document.getElementById("results").textContent=JSON.stringify({ok:false,error:error.stack})});</script>';
     const file = path.join(temp, 'test.html'); fs.writeFileSync(file, html);
-    const run = spawnSync(browser, ['--headless', '--disable-gpu', '--no-first-run',
+    const run = spawnSync(browser, ['--headless', '--no-sandbox', '--disable-gpu', '--no-first-run',
       '--user-data-dir=' + path.join(temp, 'profile'), '--virtual-time-budget=15000',
       ...(reduced ? ['--force-prefers-reduced-motion=reduce'] : []), '--dump-dom', new URL('file:///' + file.replaceAll('\\', '/')).href
     ], { encoding: 'utf8', timeout: 45000, maxBuffer: 5000000 });
