@@ -262,3 +262,45 @@
   }
   .sleep-paw-overlay, .sleep-belly-marks, .dream-bubble { animation: none !important; }
 }
+
+/* ── Feature 3: Peekaboo Mode ────────────────────────────────────────── */
+:host {
+  overflow: hidden !important;
+}
+
+.peeking.peekaboo-left .gesture {
+  transform: rotate(3deg) translateY(-2px);
+  transition: transform 0.4s ease-out;
+}
+
+.peeking.peekaboo-right .gesture {
+  transform: rotate(-3deg) translateY(-2px);
+  transition: transform 0.4s ease-out;
+}
+
+.peeking.peeking-tilt.peekaboo-left .gesture {
+  transform: rotate(6deg) translateY(-4px);
+}
+
+.peeking.peeking-tilt.peekaboo-right .gesture {
+  transform: rotate(-6deg) translateY(-4px);
+}
+
+.peeking.peeking-scoot.peekaboo-left .gesture {
+  transform: translateX(12px) rotate(2deg);
+}
+
+.peeking.peeking-scoot.peekaboo-right .gesture {
+  transform: translateX(-12px) rotate(-2deg);
+}
+
+.paused .peeking .gesture {
+  animation-play-state: paused !important;
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .peeking .gesture {
+    transform: none !important;
+    transition: none !important;
+  }
+}

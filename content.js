@@ -97,7 +97,7 @@
   async function save(patch) {
     // Capture the visible walk position before rendering any changed preference.
     if (stopWalk(false)) patch = { position: state.position, ...patch };
-    clearPose(); cancelToy();
+    clearPose(); cancelToy(); cancelPeekaboo(true);
     state = clean({ ...state, ...patch }); render();
     await store(patch);
   }
@@ -182,7 +182,7 @@
     }
   }
   function say(text) {
-    if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind) return false;
+    if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind || peekaboo) return false;
     bubble.textContent = text; bubble.hidden = false; position();
     clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 7000);
     return true;
@@ -194,7 +194,7 @@
     reaction.replaceChildren();
   }
   function react(kind) {
-    stopWalk(); clearPose();
+    stopWalk(); clearPose(); cancelPeekaboo(true);
     endReaction();
     reactionKind = kind;
     anchor.classList.add(kind);
@@ -220,7 +220,7 @@
   }
   function canIdle() {
     return !state.hidden && !state.sleeping && !document.hidden && !motion.matches &&
-      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !typing();
+      panel.hidden && bubble.hidden && !dragging && !walking && !activePose && !reactionKind && !toyCleanup && !peekaboo && !typing();
   }
   function randomMessage() {
     const messages = globalThis.LOVEBUG_MESSAGES;
@@ -497,6 +497,225 @@
     else if (kind === 'butterfly') playButterfly();
     else playHeart();
   }
+
+  // ── Feature 3: Peekaboo Mode ──────────────────────────────────────────
+  let peekaboo = null;
+  let lastPeekabooTime = Date.now();
+  let peekabooCooldown = 480000 + Math.random() * 420000; // 8 - 15 minutes
+
+  function getPeekabooTarget() {
+    if (!anchor) return null;
+    const currentX = parseFloat(anchor.style.left);
+    const currentY = parseFloat(anchor.style.top);
+    if (!Number.isFinite(currentX) || !Number.isFinite(currentY)) return null;
+
+    // Visible slice width when hidden behind edge (~75px out of 192px sprite = ~61% hidden)
+    const VISIBLE_SLICE = 75;
+    const leftEdgeX = -(PET_SIZE - VISIBLE_SLICE); // -117px
+    const rightEdgeX = innerWidth - VISIBLE_SLICE;  // innerWidth - 75px
+
+    const distToLeft = Math.abs(currentX - leftEdgeX);
+    const distToRight = Math.abs(rightEdgeX - currentX);
+
+    // Pick the nearer horizontal edge
+    const edge = distToLeft <= distToRight ? 'left' : 'right';
+    const targetX = edge === 'left' ? leftEdgeX : rightEdgeX;
+    const distance = edge === 'left' ? distToLeft : distToRight;
+
+    // Skip peekaboo if too far from the nearest edge (avoids long cross-screen trek)
+    const maxDistance = Math.min(380, innerWidth * 0.45);
+    if (distance > maxDistance || distance < 25) return null;
+
+    return { edge, targetX, currentX, currentY, distance };
+  }
+
+  function shouldPeekaboo() {
+    if (globalThis.harness && !globalThis.harness.allowPeekaboo) return false;
+    if (Date.now() - lastPeekabooTime < peekabooCooldown) return false;
+    return getPeekabooTarget() !== null;
+  }
+
+  function cancelPeekaboo(persist = true) {
+    if (!peekaboo) return false;
+    const current = peekaboo;
+    peekaboo = null;
+
+    current.timers.forEach(clearTimeout);
+
+    walkGeneration++;
+    if (walkFrame) {
+      cancelAnimationFrame(walkFrame);
+      walkFrame = null;
+    }
+    walking = false;
+
+    anchor.classList.remove(
+      'walking', 'facing-left',
+      'peeking', 'peekaboo-left', 'peekaboo-right',
+      'peeking-tilt', 'peeking-scoot'
+    );
+
+    if (persist) {
+      rememberPixels(parseFloat(anchor.style.left), parseFloat(anchor.style.top));
+      position();
+      void store({ position: { ...state.position } });
+    }
+    return true;
+  }
+
+  function tryStartPeekaboo() {
+    if (!canIdle() || motion.matches || peekaboo) return;
+    const target = getPeekabooTarget();
+    if (!target) return;
+
+    lastPeekabooTime = Date.now();
+    peekabooCooldown = 480000 + Math.random() * 420000;
+
+    const originPos = { ...state.position };
+    const originX = target.currentX;
+    const originY = target.currentY;
+    const targetX = target.targetX;
+    const edge = target.edge;
+
+    peekaboo = {
+      originPos,
+      originX,
+      originY,
+      targetX,
+      edge,
+      phase: 'out',
+      timers: []
+    };
+
+    function pt(fn, ms) {
+      const id = setTimeout(() => {
+        if (!peekaboo) return;
+        fn();
+      }, ms);
+      peekaboo.timers.push(id);
+      return id;
+    }
+
+    // Step 1: Walk to the edge
+    walking = true;
+    anchor.classList.add('walking');
+    // Facing left when moving to left edge; facing right (facing-left = false) when moving to right edge
+    const walkDir = edge === 'left' ? -1 : 1;
+    anchor.classList.toggle('facing-left', walkDir < 0);
+
+    const generation = ++walkGeneration;
+    const durationOut = Math.max(1100, Math.min(2400, (target.distance / 115) * 1000));
+    const startedOut = performance.now();
+
+    function frameOut(now) {
+      if (generation !== walkGeneration || !walking || !peekaboo || peekaboo.phase !== 'out') return;
+      if (state.hidden || state.sleeping || document.hidden || motion.matches || !panel.hidden || dragging || activePose || reactionKind || toyCleanup || typing()) {
+        cancelPeekaboo(true);
+        return;
+      }
+      const p = Math.min(1, (now - startedOut) / durationOut);
+      const curX = originX + (targetX - originX) * p;
+      anchor.style.left = `${curX}px`;
+
+      if (p < 1) {
+        walkFrame = requestAnimationFrame(frameOut);
+      } else {
+        // Arrived at edge! Stop walk, begin Peeking phase
+        walkFrame = null;
+        walking = false;
+        anchor.classList.remove('walking');
+        peekaboo.phase = 'peeking';
+
+        // Turn to look into the webpage:
+        // At left edge: looks toward right (into page) -> facing-left is false
+        // At right edge: looks toward left (into page) -> facing-left is true
+        anchor.classList.toggle('facing-left', edge === 'right');
+        anchor.classList.add('peeking', edge === 'left' ? 'peekaboo-left' : 'peekaboo-right');
+
+        // Playful peek animations
+        // 1) Subtle curious head tilt
+        pt(() => {
+          if (!peekaboo || peekaboo.phase !== 'peeking') return;
+          anchor.classList.add('peeking-tilt');
+        }, 550 + Math.random() * 250);
+
+        // 2) Slow curious blink
+        pt(() => {
+          if (!peekaboo || peekaboo.phase !== 'peeking') return;
+          pose('blink', 650);
+        }, 1300 + Math.random() * 300);
+
+        // 3) Occasional tiny peek scoot further into view, then settle back
+        pt(() => {
+          if (!peekaboo || peekaboo.phase !== 'peeking') return;
+          anchor.classList.remove('peeking-tilt');
+          anchor.classList.add('peeking-scoot');
+          pt(() => {
+            if (!peekaboo || peekaboo.phase !== 'peeking') return;
+            anchor.classList.remove('peeking-scoot');
+          }, 650);
+        }, 2200 + Math.random() * 300);
+
+        // 4) Return walk after peek duration (approx 3.2 - 4.2 seconds)
+        const totalPeekDuration = 3200 + Math.random() * 1000;
+        pt(() => {
+          if (!peekaboo || peekaboo.phase !== 'peeking') return;
+          startReturnWalk();
+        }, totalPeekDuration);
+      }
+    }
+
+    walkFrame = requestAnimationFrame(frameOut);
+
+    function startReturnWalk() {
+      if (!peekaboo) return;
+      peekaboo.phase = 'return';
+      anchor.classList.remove(
+        'peeking', 'peekaboo-left', 'peekaboo-right',
+        'peeking-tilt', 'peeking-scoot'
+      );
+
+      // Walk back toward original position:
+      // From left edge: walking right -> facing-left = false
+      // From right edge: walking left -> facing-left = true
+      walking = true;
+      anchor.classList.add('walking');
+      anchor.classList.toggle('facing-left', edge === 'right');
+
+      const returnGen = ++walkGeneration;
+      const durationReturn = Math.max(1100, Math.min(2400, (target.distance / 115) * 1000));
+      const startedReturn = performance.now();
+      const fromX = parseFloat(anchor.style.left);
+
+      function frameReturn(now) {
+        if (returnGen !== walkGeneration || !walking || !peekaboo || peekaboo.phase !== 'return') return;
+        if (state.hidden || state.sleeping || document.hidden || motion.matches || !panel.hidden || dragging || activePose || reactionKind || toyCleanup || typing()) {
+          cancelPeekaboo(true);
+          return;
+        }
+        const p = Math.min(1, (now - startedReturn) / durationReturn);
+        const curX = fromX + (originX - fromX) * p;
+        anchor.style.left = `${curX}px`;
+
+        if (p < 1) {
+          walkFrame = requestAnimationFrame(frameReturn);
+        } else {
+          // Arrived back home!
+          walkFrame = null;
+          walking = false;
+          anchor.classList.remove('walking', 'facing-left');
+          const savedPos = peekaboo.originPos;
+          peekaboo = null;
+          state.position = savedPos;
+          position();
+        }
+      }
+
+      walkFrame = requestAnimationFrame(frameReturn);
+    }
+  }
+  globalThis.__lovebugPeekaboo = tryStartPeekaboo;
+
   function schedule() {
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
@@ -512,6 +731,7 @@
           // Choose one action per tick; a periodic walk must not overlap a pose.
           if (idleCount % 6 === 0 && idleCount % 18 !== 0) walk();
           else if (idleCount % 18 === 0) { toyCount++; tryStartToy(); }
+          else if (shouldPeekaboo()) tryStartPeekaboo();
           else if (n < .42) pose('blink', 650);
           else if (n < .62) pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
           else if (n < .78) pose('twitch', 600);
@@ -593,7 +813,9 @@
     anchor.append(kitten, panel, bubble, reaction); root.append(anchor); document.documentElement.append(host); render();
     kitten.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
-      stopWalk(); clearPose(); endReaction(); cancelToy(); position();
+      const wasPeeking = Boolean(peekaboo);
+      stopWalk(); clearPose(); endReaction(); cancelToy(); cancelPeekaboo(true);
+      if (wasPeeking) position();
       dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, left: parseFloat(anchor.style.left), top: parseFloat(anchor.style.top) }; moved = false;
       kitten.setPointerCapture(e.pointerId);
     });
@@ -613,7 +835,7 @@
       if (e.detail > 1) return;
       clearTimeout(clickTimer);
       const openMenu = () => {
-        stopWalk(); clearPose();
+        stopWalk(); clearPose(); cancelPeekaboo(true);
         if (state.sleeping) save({ sleeping: false });
         panel.hidden = !panel.hidden; bubble.hidden = true; kitten.setAttribute('aria-expanded', String(!panel.hidden)); position();
       };
@@ -624,19 +846,19 @@
       clearTimeout(clickTimer);
       if (moved) { moved = false; return; }
       panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
-      cancelToy(); callbacks['Pet']();
+      cancelToy(); cancelPeekaboo(true); callbacks['Pet']();
     });
     document.addEventListener('pointerdown', e => { if (!e.composedPath().includes(host)) { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); } }, true);
     root.addEventListener('keydown', e => { if (e.key === 'Escape') { panel.hidden = true; kitten.setAttribute('aria-expanded', 'false'); kitten.focus(); } });
     document.addEventListener('keydown', () => { bubble.hidden = true; }, true);
     addEventListener('resize', () => {
-      stopWalk(); clearPose(); cancelToy();
+      stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true);
       stopDrag();
       position();
     });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        stopWalk(); stopDrag(); clearPose(); cancelToy(); bubble.hidden = true;
+        stopWalk(); stopDrag(); clearPose(); cancelToy(); cancelPeekaboo(true); bubble.hidden = true;
         // Pause dream bubbles when tab is hidden
         clearTimeout(dreamBubbleTimer); dreamBubbleTimer = null;
       } else if (state.sleeping) {
@@ -647,7 +869,7 @@
     });
     motion.addEventListener('change', () => {
       if (motion.matches) {
-        stopWalk(); clearPose(); cancelToy();
+        stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true);
         // Clear pose change timer when motion is reduced
         clearTimeout(sleepPoseTimer); sleepPoseTimer = null;
         // Clear dream bubbles when reduced motion is enabled
@@ -667,7 +889,7 @@
       // may still update name, happiness and visibility without moving the kitten.
       if (dragging || patch.position?.writer === positionWriter) delete patch.position;
       else if ('position' in patch) stopWalk(false);
-      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); cancelToy(); }
+      if (patch.hidden || patch.sleeping) { stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); }
       state = clean({ ...state, ...patch }); render();
     });
     anchor.classList.toggle('paused', document.hidden);

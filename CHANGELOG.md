@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-11-05
 
 ### Added
+* **Edge Peekaboo Mode**:
+  * When stationed near the viewport edges, the kitten playfully ducks behind the browser border and peeks back out to surprise the user.
+  * Preserves visible position and gracefully stops on user drag, menu interaction, sleep, or reduced-motion.
 * **Interactive Idle Toys**:
   * **Rolling Yarn Ball**: The kitten plays with a rolling yarn ball during idle periods.
   * **Fluttering Butterfly**: A soft butterfly flutters around the kitten before flying away.
