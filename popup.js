@@ -79,6 +79,31 @@ if (messagesToggle) {
   });
 }
 
+const btnGiftNow = document.getElementById('btnGiftNow');
+const btnToyNow = document.getElementById('btnToyNow');
+
+if (btnGiftNow) {
+  btnGiftNow.addEventListener('click', async () => {
+    try {
+      await chrome.storage.local.set({ triggerGiftNow: Date.now() });
+      status.textContent = 'Gift sent to your kitten! 🎁';
+    } catch {
+      status.textContent = 'Could not deliver gift. Try again.';
+    }
+  });
+}
+
+if (btnToyNow) {
+  btnToyNow.addEventListener('click', async () => {
+    try {
+      await chrome.storage.local.set({ triggerToyNow: Date.now() });
+      status.textContent = 'Playtime started with kitten! 🐾';
+    } catch {
+      status.textContent = 'Could not start toy. Try again.';
+    }
+  });
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if (changes.name) petName.textContent = changes.name.newValue || 'Lovebug';

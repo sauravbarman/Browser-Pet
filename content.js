@@ -16,7 +16,7 @@
   let state = { ...defaults }, host, root, anchor, kitten, panel, bubble, reaction, title, meter, status;
   let dragging = null, moved = false, walking = false, walkFrame = null, walkGeneration = 0;
   let activePose = null, poseTimer, reactionKind = null;
-  let bubbleTimer, reactionTimer, idleTimer, lastMessage = Date.now(), previousRandomMessage, idleCount = 0;
+  let bubbleTimer, reactionTimer, idleTimer, lastMessage = globalThis.harness ? Date.now() : (Date.now() - 30000), previousRandomMessage, idleCount = 0;
   let actionButtons = {}, clickTimer = null;
   let toyTimer = null, toyCleanup = null, lastToyKind = null, toyCount = 0;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -520,8 +520,8 @@
 
   // ── Feature 3: Peekaboo Mode ──────────────────────────────────────────
   let peekaboo = null;
-  let lastPeekabooTime = Date.now();
-  let peekabooCooldown = 480000 + Math.random() * 420000; // 8 - 15 minutes
+  let lastPeekabooTime = globalThis.harness ? Date.now() : (Date.now() - 40000);
+  let peekabooCooldown = globalThis.harness ? (480000 + Math.random() * 420000) : (60000 + Math.random() * 60000);
 
   function getPeekabooTarget() {
     if (!anchor) return null;
@@ -552,7 +552,7 @@
   function shouldPeekaboo() {
     if (globalThis.harness && !globalThis.harness.allowPeekaboo) return false;
     if (Date.now() - lastPeekabooTime < peekabooCooldown) return false;
-    if (Date.now() - lastGiftTime < 60000) return false;
+    if (Date.now() - lastGiftTime < (globalThis.harness ? 60000 : 15000)) return false;
     return getPeekabooTarget() !== null;
   }
 
@@ -739,22 +739,27 @@
 
   // ── Feature 6: Surprise Gifts 🎁 ──────────────────────────────────────
   let currentGift = null;
-  let lastGiftTime = Date.now();
-  let lastGiftKind = null;
   const GIFT_KINDS = ['flower', 'heart', 'star', 'present'];
 
   function getGiftInterval(frequency) {
-    if (frequency === 'frequent') return (15 + Math.random() * 10) * 60 * 1000;
-    if (frequency === 'rare') return (35 + Math.random() * 10) * 60 * 1000;
-    return (25 + Math.random() * 10) * 60 * 1000; // 'normal' default (25-35 min)
+    if (globalThis.harness) {
+      if (frequency === 'frequent') return (15 + Math.random() * 10) * 60 * 1000;
+      if (frequency === 'rare') return (35 + Math.random() * 10) * 60 * 1000;
+      return (25 + Math.random() * 10) * 60 * 1000; // 'normal' default (25-35 min)
+    }
+    if (frequency === 'frequent') return (2 + Math.random() * 2) * 60 * 1000; // 2-4 min
+    if (frequency === 'rare') return (8 + Math.random() * 8) * 60 * 1000;   // 8-16 min
+    return (3 + Math.random() * 3) * 60 * 1000; // 3-6 min
   }
   let giftCooldown = getGiftInterval(defaults.giftFrequency);
+  let lastGiftTime = globalThis.harness ? Date.now() : (Date.now() - giftCooldown + 45000);
+  let lastGiftKind = null;
 
   function shouldGift() {
     if (state.surpriseGifts === false) return false;
     if (globalThis.harness && !globalThis.harness.allowGift) return false;
     if (Date.now() - lastGiftTime < giftCooldown) return false;
-    if (Date.now() - lastPeekabooTime < 60000) return false;
+    if (Date.now() - lastPeekabooTime < (globalThis.harness ? 60000 : 15000)) return false;
     return canGift();
   }
 
@@ -1089,7 +1094,9 @@
     idleTimer = setTimeout(() => {
       if (!state.hidden && !document.hidden) {
         // Offer a note before selecting a pose; a visible bubble then blocks walking.
-        if (Date.now() - lastMessage > 180000 && Math.random() < .14) {
+        const noteCooldown = globalThis.harness ? 180000 : 45000;
+        const noteChance = globalThis.harness ? .14 : .35;
+        if (Date.now() - lastMessage > noteCooldown && Math.random() < noteChance) {
           const message = randomMessage();
           if (message !== undefined && say(message)) { previousRandomMessage = message; lastMessage = Date.now(); }
         }
@@ -1098,16 +1105,40 @@
         } else if (canIdle()) {
           idleCount++;
           const n = Math.random();
-          // Choose one action per tick; a periodic walk must not overlap a pose.
-          if (idleCount % 6 === 0 && idleCount % 18 !== 0) walk();
-          else if (idleCount % 18 === 0) { toyCount++; tryStartToy(); }
-          else if (shouldPeekaboo()) tryStartPeekaboo();
-          else if (n < .42) pose('blink', 650);
-          else if (n < .62) pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
-          else if (n < .78) pose('twitch', 600);
-          else if (n < .9) pose('stretch', 1900);
-          else if (n < .98) walk();
-          else save({ sleeping: true });
+          if (globalThis.harness) {
+            // Choose one action per tick; a periodic walk must not overlap a pose.
+            if (idleCount % 6 === 0 && idleCount % 18 !== 0) walk();
+            else if (idleCount % 18 === 0) { toyCount++; tryStartToy(); }
+            else if (shouldPeekaboo()) tryStartPeekaboo();
+            else if (n < .42) pose('blink', 650);
+            else if (n < .62) pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
+            else if (n < .78) pose('twitch', 600);
+            else if (n < .9) pose('stretch', 1900);
+            else if (n < .98) walk();
+            else save({ sleeping: true });
+          } else {
+            // In real browser: lively, engaging mix of toys, walks, poses, and peekaboo
+            if (shouldPeekaboo()) {
+              tryStartPeekaboo();
+            } else if (idleCount % 5 === 0) {
+              toyCount++;
+              tryStartToy();
+            } else if (idleCount % 3 === 0) {
+              walk();
+            } else if (n < .28) {
+              pose('blink', 650);
+            } else if (n < .48) {
+              pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
+            } else if (n < .68) {
+              pose('twitch', 600);
+            } else if (n < .84) {
+              pose('stretch', 1900);
+            } else if (n < .96) {
+              walk();
+            } else {
+              save({ sleeping: true });
+            }
+          }
         }
       }
       schedule();
@@ -1118,14 +1149,16 @@
     walking = true; anchor.classList.add('walking');
     const generation = ++walkGeneration;
     const x = parseFloat(anchor.style.left), max = Math.max(0, innerWidth - PET_SIZE);
-    const direction = x > max - 65 ? -1 : x < 65 ? 1 : Math.random() < .5 ? -1 : 1;
+    const stride = globalThis.harness ? 65 : (110 + Math.floor(Math.random() * 90));
+    const direction = x > max - stride ? -1 : x < stride ? 1 : Math.random() < .5 ? -1 : 1;
     anchor.classList.toggle('facing-left', direction < 0);
-    const target = Math.max(0, Math.min(max, x + direction * 65));
+    const target = Math.max(0, Math.min(max, x + direction * stride));
     const started = performance.now();
+    const duration = globalThis.harness ? 1700 : Math.round((Math.abs(target - x) / 65) * 1100);
     function frame(now) {
       if (generation !== walkGeneration || !walking) return;
       if (state.hidden || state.sleeping || document.hidden || motion.matches || !panel.hidden || dragging || activePose || reactionKind) { stopWalk(); return; }
-      const p = Math.min(1, (now - started) / 1700);
+      const p = Math.min(1, (now - started) / (duration || 1700));
       // Keep render() and position() on the live position, not the pre-walk save.
       rememberPixels(x + (target - x) * p, parseFloat(anchor.style.top));
       position();
@@ -1166,6 +1199,11 @@
     const callbacks = {
       'Pet': () => { save({ happiness: Math.min(100, state.happiness + 5), sleeping: false }); react('petting'); },
       'Feed': () => { save({ happiness: Math.min(100, state.happiness + 8), sleeping: false }); react('feeding'); },
+      'Play': () => {
+        panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
+        save({ happiness: Math.min(100, state.happiness + 6), sleeping: false });
+        tryStartToy();
+      },
       'Sleep': () => save({ sleeping: true }), 'Wake up': () => { save({ sleeping: false }); react('waking'); },
       'Rename': () => { rename.hidden = !rename.hidden; input.value = state.name; position(); if (!rename.hidden) input.focus(); },
       'Hide': () => save({ hidden: true })
@@ -1192,7 +1230,7 @@
     kitten.addEventListener('pointermove', e => {
       if (!dragging || dragging.id !== e.pointerId) return;
       const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
-      if (Math.hypot(dx, dy) > 5) moved = true;
+      if (Math.hypot(dx, dy) > 9) moved = true;
       if (!moved) return;
       panel.hidden = bubble.hidden = true;
       const mx = Math.max(0, innerWidth - PET_SIZE), my = Math.max(0, innerHeight - PET_SIZE);
@@ -1261,6 +1299,16 @@
       else if ('position' in patch) stopWalk(false);
       if (patch.hidden || patch.sleeping || patch.surpriseGifts === false) { stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift(); }
       state = clean({ ...state, ...patch }); render();
+      if (changes.triggerGiftNow) {
+        if (!state.hidden && !state.sleeping && !document.hidden && !motion.matches) {
+          cancelToy(); cancelPeekaboo(true); tryStartGift();
+        }
+      }
+      if (changes.triggerToyNow) {
+        if (!state.hidden && !state.sleeping && !document.hidden && !motion.matches) {
+          cancelGift(); cancelPeekaboo(true); tryStartToy();
+        }
+      }
     });
     anchor.classList.toggle('paused', document.hidden);
     schedule();
