@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2026-11-05
+
+### Added
+* **Care Menu "Play" Action**:
+  * Added an interactive **Play** button directly into the kitten's care menu (`callbacks['Play']`) that immediately launches a toy (rolling yarn ball, fluttering butterfly, or floating heart balloon) and boosts happiness (+6).
+* **On-Demand Toolbar Popup Quick Actions**:
+  * Added **"🎁 Deliver gift now"** and **"🐾 Play with toy"** buttons to `popup.html` and `popup.js`, allowing instant testing and playtime on any active tab via `chrome.storage.local` synchronization.
+  * Updated popup gift frequency options to realistic intervals: *Rare (8–16m)*, *Normal (3–6m)*, and *Frequent (2–4m)*.
+
+### Changed
+* **Lively Autonomous Timers & Cooldowns**:
+  * **Love Notes / Greetings**: Reduced page-load delay from 3 minutes to ~15–30 seconds, repeating every 45–75 seconds instead of remaining silent for several minutes.
+  * **Surprise Gifts (Feature 6)**: Reduced default cooldown from 25–35 minutes to 3–6 minutes, with the first gift arriving within ~45–60 seconds on page load.
+  * **Edge Peekaboo**: Reduced cooldown from 8–15 minutes to 1–2 minutes when positioned near viewport edges.
+  * **Idle Toys**: Increased toy frequency to trigger every 5 idle ticks (~25 seconds) instead of 18 ticks (~2 minutes).
+* **Natural Walking Stride**:
+  * Replaced the rigid 65px step during normal browsing with natural strides of 110–200px and scaled durations.
+* **Improved Click & Drag Responsiveness**:
+  * Increased pointer drag threshold from 5px to 9px to prevent slight mouse sensor jitter from suppressing single-click care menu activation.
+  * Adjusted care menu button layout in `pet.css` into a balanced 2-column grid.
+
+---
+
 ## [1.3.0] - 2026-11-05
 
 ### Added
