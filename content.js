@@ -136,8 +136,12 @@
     panel.style.width = `${width}px`; bubble.style.width = `${Math.min(220, width)}px`;
     const left = Math.max(8, Math.min(innerWidth - width - 8, x + PET_SIZE - 10 - width)) - x;
     panel.style.left = bubble.style.left = `${left}px`;
-    panel.style.top = `${Math.max(8, Math.min(innerHeight - panel.offsetHeight - 8, y - panel.offsetHeight - 8)) - y}px`;
-    bubble.style.top = `${Math.max(8, y - bubble.offsetHeight - 8) - y}px`;
+    const preferAbove = y - panel.offsetHeight - 8 >= 8 || y + PET_SIZE + panel.offsetHeight + 8 > innerHeight;
+    const targetPanelY = preferAbove ? Math.max(8, y - panel.offsetHeight - 8) : Math.min(innerHeight - panel.offsetHeight - 8, y + PET_SIZE + 8);
+    panel.style.top = `${targetPanelY - y}px`;
+    const preferBubbleAbove = y - bubble.offsetHeight - 8 >= 8 || y + PET_SIZE + bubble.offsetHeight + 8 > innerHeight;
+    const targetBubbleY = preferBubbleAbove ? Math.max(8, y - bubble.offsetHeight - 8) : Math.min(innerHeight - bubble.offsetHeight - 8, y + PET_SIZE + 8);
+    bubble.style.top = `${targetBubbleY - y}px`;
     panel.style.maxHeight = `${Math.max(40, innerHeight - 16)}px`; panel.style.overflowY = 'auto';
   }
   function rememberPixels(x, y) {
@@ -1023,6 +1027,10 @@
 
         clearPose();
         react('petting');
+        state.happiness = Math.min(100, state.happiness + 5);
+        if (meter) meter.style.width = `${state.happiness}%`;
+        if (status) status.textContent = `♥ ${state.happiness}/100 · ${state.sleeping ? 'Dreaming of you' : state.happiness >= 90 ? 'Feeling adored' : 'Happy to be here'}`;
+        void store({ happiness: state.happiness });
 
         if (state.giftMessages !== false) {
           const revMsg = pickGiftMessage('opened');
@@ -1041,6 +1049,10 @@
         giftEl.classList.add('accepted');
         clearPose();
         pose('twitch', 600);
+        state.happiness = Math.min(100, state.happiness + 5);
+        if (meter) meter.style.width = `${state.happiness}%`;
+        if (status) status.textContent = `♥ ${state.happiness}/100 · ${state.sleeping ? 'Dreaming of you' : state.happiness >= 90 ? 'Feeling adored' : 'Happy to be here'}`;
+        void store({ happiness: state.happiness });
 
         if (!motion.matches) {
           const syms = ['♡', '✧', '✦'];
@@ -1300,12 +1312,14 @@
       if (patch.hidden || patch.sleeping || patch.surpriseGifts === false) { stopWalk(); clearPose(); cancelToy(); cancelPeekaboo(true); cancelGift(); }
       state = clean({ ...state, ...patch }); render();
       if (changes.triggerGiftNow) {
-        if (!state.hidden && !state.sleeping && !document.hidden && !motion.matches) {
+        if (!state.hidden && !document.hidden && !motion.matches) {
+          if (state.sleeping) { save({ sleeping: false }); react('waking'); }
           cancelToy(); cancelPeekaboo(true); tryStartGift();
         }
       }
       if (changes.triggerToyNow) {
-        if (!state.hidden && !state.sleeping && !document.hidden && !motion.matches) {
+        if (!state.hidden && !document.hidden && !motion.matches) {
+          if (state.sleeping) { save({ sleeping: false }); react('waking'); }
           cancelGift(); cancelPeekaboo(true); tryStartToy();
         }
       }

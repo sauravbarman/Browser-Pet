@@ -7,7 +7,7 @@
 ### *A tiny, original pixel-art kitten carrying a little extra love through your day.*
 
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](manifest.json)
-[![Version](https://img.shields.io/badge/Version-1.2.0-F472B6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.3.1-F472B6?style=flat-square)](CHANGELOG.md)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-34D399?style=flat-square)]()
 [![100% Offline](https://img.shields.io/badge/Network-100%25_Offline-A78BFA?style=flat-square)]()
 [![Privacy First](https://img.shields.io/badge/Privacy-100%25_Local-FBBF24?style=flat-square)]()
@@ -36,7 +36,7 @@ Everything runs completely locally within your browser. There are **zero trackin
 | ⏰ **Time-of-Day Care Notes** | Delivers caring, time-sensitive reminders: warm breakfast (morning), hydration & jaw relaxation (afternoon), dinner cheer (evening), and cozy bed reminders (night). |
 | 💌 **Non-Repeating Love Notes** | Speech bubbles appear occasionally with sweet personal messages, never repeating consecutively. Automatically hides while typing in forms. |
 | 💤 **Smart Sleep / Wake Toggle** | Menu button dynamically toggles between **Sleep** (closed eyes, floating `"z Z"`) and **Wake up** (sparkle burst). |
-| 🎀 **Care & Happiness System** | **Pet** (+5) and **Feed** (+8 munching bowl) increase happiness up to 100. **Happiness never decays** and there are no starvation penalties. |
+| 🎀 **Care & Happiness System** | **Pet** (+5), **Feed** (+8 munching bowl), and **Play** (+6 idle toy) increase happiness up to 100. **Happiness never decays** and there are no starvation penalties. |
 | 🎯 **Normalized Viewport Drag** | Drag the kitten anywhere. Position is remembered as a screen percentage so it adapts seamlessly across window resizes and multi-monitor setups. |
 | 🔄 **Cross-Tab Synchronization** | Name, happiness, sleep state, and visibility stay synchronized across all open Chrome tabs via Chrome's local extension storage. |
 | ♿ **Accessibility & Motion** | Respects operating system reduced-motion settings, uses isolated closed Shadow DOM, and supports full keyboard navigation (`Tab`, `Enter`, `Escape`). |
@@ -74,6 +74,7 @@ Everything runs completely locally within your browser. There are **zero trackin
 * **Drag**: Pick up and move your kitten to any spot on your screen.
 * **Pet**: Adds 5 happiness and releases hearts.
 * **Feed**: Adds 8 happiness and brings out a pink food bowl with a happy eating animation.
+* **Play**: Brings out an interactive toy (yarn ball, fluttering butterfly, or heart balloon) and adds 6 happiness.
 * **Sleep / Wake up**: Toggles nap mode with floating dream bubbles. Click the kitten or choose Wake up to rouse her.
 * **Rename**: Give your companion a custom name (up to 30 characters; defaults to *Lovebug*).
 * **Hide / Show**: Hide the kitten across open tabs from the menu. Click the toolbar popup and toggle **Show my kitten** to bring her back.

@@ -85,8 +85,12 @@ const btnToyNow = document.getElementById('btnToyNow');
 if (btnGiftNow) {
   btnGiftNow.addEventListener('click', async () => {
     try {
+      if (!toggle.checked) {
+        toggle.checked = true;
+        await chrome.storage.local.set({ hidden: false });
+      }
       await chrome.storage.local.set({ triggerGiftNow: Date.now() });
-      status.textContent = 'Gift sent to your kitten! 🎁';
+      status.textContent = 'Gift delivered to your kitten! 🎁';
     } catch {
       status.textContent = 'Could not deliver gift. Try again.';
     }
@@ -96,6 +100,10 @@ if (btnGiftNow) {
 if (btnToyNow) {
   btnToyNow.addEventListener('click', async () => {
     try {
+      if (!toggle.checked) {
+        toggle.checked = true;
+        await chrome.storage.local.set({ hidden: false });
+      }
       await chrome.storage.local.set({ triggerToyNow: Date.now() });
       status.textContent = 'Playtime started with kitten! 🐾';
     } catch {
