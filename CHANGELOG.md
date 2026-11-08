@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-11-08
+
+### Fixed & Enhanced
+* **Sleep Mode Auto-Wakeup**:
+  * Fixed an issue where the kitten would fall asleep during idle and remain asleep indefinitely across all tabs.
+  * Added automatic catnap wake-up: autonomous naps now last ~16–24 seconds before the kitten wakes up on its own with a gentle sparkle burst (`react('waking')`), restoring idle activities.
+* **Instant First Surprise Gift**:
+  * The first surprise gift (flower 🌸, heart 💗, star ⭐, or wrapped present 🎁) is now ready within ~8–12 seconds of opening a page instead of waiting several minutes.
+* **Toy Positioning & Visibility Fixes**:
+  * Fixed yarn ball placement (`playYarn`) so it spawns neatly beside the kitten's paws within the screen instead of getting clamped behind the kitten sprite or rendered off-screen.
+  * Clamped butterfly (`playButterfly`) and heart balloon (`playHeart`) coordinates so they never spawn above the top of the monitor when the kitten is stationed near the upper viewport.
+  * Significantly increased autonomous toy frequency (playing with yarn, butterflies, or heart balloons during idle cycles).
+* **Wider Peekaboo Edge Activation**:
+  * Increased Peekaboo trigger distance from 380px to up to 550px, allowing the kitten to initiate Peekaboo across a much broader portion of the screen.
+* **Toolbar Popup "Play peekaboo" Action**:
+  * Added a dedicated **"🙈 Play peekaboo"** quick-action button in the extension popup for immediate on-demand peekaboo testing.
+
+---
+
 ## [1.3.1] - 2026-11-05
 
 ### Added

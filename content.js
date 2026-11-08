@@ -25,9 +25,19 @@
   const positionWriter = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   // ── Sleep pose state (ephemeral per-tab, not persisted) ──────────────────
-  let sleepPose = null, lastSleepPose = null, sleepPoseTimer = null, dreamBubbleTimer = null;
+  let sleepPose = null, lastSleepPose = null, sleepPoseTimer = null, dreamBubbleTimer = null, autoWakeTimer = null;
   const SLEEP_POSES = ['curled', 'side', 'face', 'belly'];
   const SLEEP_POSE_WEIGHTS = [40, 30, 20, 10]; // %
+
+  function scheduleAutoWake() {
+    clearTimeout(autoWakeTimer);
+    autoWakeTimer = setTimeout(() => {
+      if (state.sleeping && !dragging && panel.hidden) {
+        save({ sleeping: false });
+        react('waking');
+      }
+    }, 16000 + Math.random() * 8000);
+  }
 
   function pickSleepPose() {
     // Weighted random selection avoiding the last pose
@@ -192,18 +202,23 @@
     if (state.sleeping && !wasSleeping) {
       startSleepPose();
       scheduleDreamBubble();
+      if (!globalThis.harness) scheduleAutoWake();
     } else if (!state.sleeping && wasSleeping) {
       clearSleepPose();
       clearTimeout(dreamBubbleTimer);
       dreamBubbleTimer = null;
+      clearTimeout(autoWakeTimer);
+      autoWakeTimer = null;
       // Clean up any lingering dream bubble elements
       anchor.querySelectorAll('.dream-bubble').forEach(el => el.remove());
+    } else if (state.sleeping && !globalThis.harness && !autoWakeTimer) {
+      scheduleAutoWake();
     }
   }
   function say(text) {
     if (state.hidden || state.sleeping || document.hidden || typing() || !panel.hidden || dragging || walking || activePose || reactionKind || peekaboo || currentGift) return false;
     bubble.textContent = text; bubble.hidden = false; position();
-    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, 7000);
+    clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, globalThis.harness ? 7000 : 4500);
     return true;
   }
   function endReaction() {
@@ -286,14 +301,11 @@
 
   function playYarn() {
     if (!canIdle() || motion.matches) return;
-    const { ax, ay } = toyPosition();
-    // Spawn yarn ball to the left or right of the kitten
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const ballW = 24, ballH = 24;
-    const rawX = ax + (side < 0 ? -ballW - 10 : 192 + 10);
-    const rawY = ay + 148;
-    const bx = clampToyX(rawX - ax, ballW + 60); // relative to anchor
-    const by = clampToyY(rawY - ay, ballH);
+    const ax = parseFloat(anchor.style.left);
+    // Spawn yarn ball to the left or right of the kitten, keeping it on-screen
+    const side = ax > innerWidth - 240 ? -1 : ax < 80 ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const bx = side < 0 ? -20 : 182;
+    const by = 146;
 
     const ball = document.createElement('div');
     ball.className = 'toy-yarn';
@@ -374,11 +386,10 @@
 
   function playButterfly() {
     if (!canIdle() || motion.matches) return;
-    const { ax, ay } = toyPosition();
-    const bfW = 28, bfH = 20;
-    // Start near kitten head
+    const ay = parseFloat(anchor.style.top);
+    // Start near kitten head, safely within viewport
     const startRelX = 60 + Math.random() * 72;
-    const startRelY = -(20 + Math.random() * 20);
+    const startRelY = ay < 50 ? (20 + Math.random() * 20) : -(20 + Math.random() * 20);
     const bf = document.createElement('div');
     bf.className = 'toy-butterfly';
     bf.setAttribute('aria-hidden', 'true');
@@ -450,10 +461,10 @@
 
   function playHeart() {
     if (!canIdle() || motion.matches) return;
-    const { ax, ay } = toyPosition();
-    // Heart appears above-left of kitten
+    const ay = parseFloat(anchor.style.top);
+    // Heart appears above kitten, safely within viewport
     const relX = 40 + Math.random() * 60;
-    const relY = -(30 + Math.random() * 20);
+    const relY = ay < 60 ? (20 + Math.random() * 20) : -(25 + Math.random() * 20);
 
     const heart = document.createElement('div');
     heart.className = 'toy-heart';
@@ -524,8 +535,8 @@
 
   // ── Feature 3: Peekaboo Mode ──────────────────────────────────────────
   let peekaboo = null;
-  let lastPeekabooTime = globalThis.harness ? Date.now() : (Date.now() - 40000);
-  let peekabooCooldown = globalThis.harness ? (480000 + Math.random() * 420000) : (60000 + Math.random() * 60000);
+  let lastPeekabooTime = globalThis.harness ? Date.now() : 0;
+  let peekabooCooldown = globalThis.harness ? (480000 + Math.random() * 420000) : (45000 + Math.random() * 45000);
 
   function getPeekabooTarget() {
     if (!anchor) return null;
@@ -547,7 +558,7 @@
     const distance = edge === 'left' ? distToLeft : distToRight;
 
     // Skip peekaboo if too far from the nearest edge (avoids long cross-screen trek)
-    const maxDistance = Math.min(380, innerWidth * 0.45);
+    const maxDistance = globalThis.harness ? Math.min(380, innerWidth * 0.45) : Math.min(550, innerWidth * 0.55);
     if (distance > maxDistance || distance < 25) return null;
 
     return { edge, targetX, currentX, currentY, distance };
@@ -756,7 +767,7 @@
     return (3 + Math.random() * 3) * 60 * 1000; // 3-6 min
   }
   let giftCooldown = getGiftInterval(defaults.giftFrequency);
-  let lastGiftTime = globalThis.harness ? Date.now() : (Date.now() - giftCooldown + 45000);
+  let lastGiftTime = globalThis.harness ? Date.now() : 0;
   let lastGiftKind = null;
 
   function shouldGift() {
@@ -1132,20 +1143,23 @@
             // In real browser: lively, engaging mix of toys, walks, poses, and peekaboo
             if (shouldPeekaboo()) {
               tryStartPeekaboo();
-            } else if (idleCount % 5 === 0) {
+            } else if (toyCount === 0 || idleCount % 4 === 0) {
               toyCount++;
               tryStartToy();
             } else if (idleCount % 3 === 0) {
               walk();
-            } else if (n < .28) {
+            } else if (n < .22) {
               pose('blink', 650);
-            } else if (n < .48) {
+            } else if (n < .42) {
               pose(Math.random() < .5 ? 'look' : 'look-left', 1700);
-            } else if (n < .68) {
+            } else if (n < .60) {
               pose('twitch', 600);
-            } else if (n < .84) {
+            } else if (n < .76) {
               pose('stretch', 1900);
-            } else if (n < .96) {
+            } else if (n < .90) {
+              toyCount++;
+              tryStartToy();
+            } else if (n < .97) {
               walk();
             } else {
               save({ sleeping: true });
@@ -1321,6 +1335,12 @@
         if (!state.hidden && !document.hidden && !motion.matches) {
           if (state.sleeping) { save({ sleeping: false }); react('waking'); }
           cancelGift(); cancelPeekaboo(true); tryStartToy();
+        }
+      }
+      if (changes.triggerPeekNow) {
+        if (!state.hidden && !document.hidden && !motion.matches) {
+          if (state.sleeping) { save({ sleeping: false }); react('waking'); }
+          cancelToy(); cancelGift(); tryStartPeekaboo();
         }
       }
     });

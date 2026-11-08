@@ -112,6 +112,22 @@ if (btnToyNow) {
   });
 }
 
+const btnPeekNow = document.getElementById('btnPeekNow');
+if (btnPeekNow) {
+  btnPeekNow.addEventListener('click', async () => {
+    try {
+      if (!toggle.checked) {
+        toggle.checked = true;
+        await chrome.storage.local.set({ hidden: false });
+      }
+      await chrome.storage.local.set({ triggerPeekNow: Date.now() });
+      status.textContent = 'Peekaboo started! 🙈';
+    } catch {
+      status.textContent = 'Could not start peekaboo. Try again.';
+    }
+  });
+}
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   if (changes.name) petName.textContent = changes.name.newValue || 'Lovebug';
