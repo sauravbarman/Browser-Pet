@@ -221,6 +221,7 @@
     clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => { bubble.hidden = true; }, globalThis.harness ? 7000 : 4500);
     return true;
   }
+  globalThis.__lovebugSay = say;
   function endReaction() {
     clearTimeout(reactionTimer);
     reactionKind = null;

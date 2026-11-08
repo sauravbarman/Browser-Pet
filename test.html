@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Little Lovebug ♡ Interactive Test Playground</title>
+  <style>
+    :root {
+      --bg: #fff5f8;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --primary: #d06597;
+      --primary-hover: #b84f80;
+      --text: #4e3a4e;
+      --subtext: #826b80;
+      --border: #f2d5e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #ffeef5, #fff8fb 40%, #f7f1fc 100%);
+      font-family: ui-rounded, "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      padding: 32px;
+      overflow-x: hidden;
+    }
+    .hud {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      max-width: 380px;
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 40px rgba(183, 94, 141, 0.12);
+      z-index: 10000;
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #b57a9e;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      color: #9c4573;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    p {
+      margin: 0 0 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--subtext);
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #9e819b;
+      margin: 14px 0 8px;
+      text-transform: uppercase;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    button {
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+    button:hover {
+      background: #fbf0f6;
+      border-color: #e5bfd5;
+      transform: translateY(-1px);
+    }
+    button:active {
+      transform: translateY(1px) scale(0.98);
+      background: #f4e1ee;
+    }
+    .btn-primary {
+      background: #fcebf4;
+      border-color: #f0c3dd;
+      color: #ad3d73;
+    }
+    .btn-primary:hover {
+      background: #f8deec;
+    }
+    .status-pill {
+      margin-top: 14px;
+      padding: 8px 12px;
+      background: #faf2f7;
+      border-radius: 12px;
+      font-size: 12px;
+      color: #7b5b78;
+      text-align: center;
+    }
+    .instructions {
+      max-width: 600px;
+      margin-left: 420px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+    }
+    .instructions h2 {
+      margin-top: 0;
+      font-size: 18px;
+      color: #8c3f68;
+    }
+    .instructions ul {
+      padding-left: 20px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #634d61;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="eyebrow">Interactive Testing Panel</div>
+    <h1>🐾 Little Lovebug ♡</h1>
+    <p>Click any button below to trigger and test that feature on your screen in real time!</p>
+
+    <div class="section-label">🎁 Surprise Gifts</div>
+    <div class="grid">
+      <button class="btn-primary" onclick="triggerGift('present')">🎁 Present Box</button>
+      <button class="btn-primary" onclick="triggerGift('flower')">🌸 Pink Flower</button>
+      <button class="btn-primary" onclick="triggerGift('heart')">💗 Mini Heart</button>
+      <button class="btn-primary" onclick="triggerGift('star')">⭐ Twinkle Star</button>
+    </div>
+
+    <div class="section-label">🐾 Interactive Toys</div>
+    <div class="grid grid-3">
+      <button onclick="triggerToy('yarn')">🧶 Yarn</button>
+      <button onclick="triggerToy('butterfly')">🦋 Butterfly</button>
+      <button onclick="triggerToy('heart')">🎈 Heart</button>
+    </div>
+
+    <div class="section-label">🙈 Edge & Behavior</div>
+    <div class="grid">
+      <button onclick="triggerPeekaboo()">🙈 Edge Peekaboo</button>
+      <button onclick="triggerSay()">💌 Love Note</button>
+      <button onclick="triggerWalk()">🚶 Stroll / Walk</button>
+      <button onclick="toggleSleep()">💤 Nap / Wake</button>
+    </div>
+
+    <div id="status" class="status-pill">Ready to play! Look bottom-right ♡</div>
+  </div>
+
+  <div class="instructions">
+    <h2>🎮 How to Test in This Playground</h2>
+    <ul>
+      <li><strong>Surprise Gifts</strong>: Click <strong>Present Box</strong>. Watch the kitten bring you a wiggling gift box! Click the gift box directly to unwrap a surprise with sparkle bursts.</li>
+      <li><strong>Toys</strong>: Click <strong>Yarn</strong>, <strong>Butterfly</strong>, or <strong>Heart</strong>. Watch the kitten swat the rolling yarn ball, watch the butterfly flutter, or pop the heart into sparkles.</li>
+      <li><strong>Edge Peekaboo</strong>: Click <strong>Edge Peekaboo</strong>. The kitten will walk to the screen border, duck behind it, and playfully peek back out!</li>
+      <li><strong>Direct Kitten Interactions</strong>:
+        <ul>
+          <li><strong>Single Click</strong> the kitten to open the care menu (Pet, Feed, Play, Sleep, Rename, Hide).</li>
+          <li><strong>Double Click</strong> the kitten for quick-pet hearts.</li>
+          <li><strong>Drag & Drop</strong> the kitten anywhere on your screen.</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Mock Chrome Extension Storage API for Standalone Webpage Testing -->
+  <script>
+    if (!window.chrome) window.chrome = {};
+    if (!chrome.runtime) chrome.runtime = {
+      getURL: (path) => path
+    };
+    const _storageData = {
+      name: 'Lovebug',
+      happiness: 80,
+      hidden: false,
+      sleeping: false,
+      position: { x: 0.88, y: 0.82 },
+      surpriseGifts: true,
+      giftFrequency: 'normal',
+      giftMessages: true
+    };
+    const _listeners = [];
+    if (!chrome.storage) chrome.storage = {
+      local: {
+        get: async (defaults) => ({ ...defaults, ..._storageData }),
+        set: async (patch) => {
+          const changes = {};
+          for (const [k, v] of Object.entries(patch)) {
+            changes[k] = { oldValue: _storageData[k], newValue: v };
+            _storageData[k] = v;
+          }
+          _listeners.forEach(fn => fn(changes, 'local'));
+        }
+      },
+      onChanged: {
+        addListener: (fn) => _listeners.push(fn)
+      }
+    };
+  </script>
+
+  <!-- Load Messages and Content Scripts -->
+  <script src="messages.js"></script>
+  <script src="content.js"></script>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    function setStatus(msg) {
+      if (statusEl) statusEl.textContent = msg;
+    }
+
+    function triggerGift(kind) {
+      if (window.__lovebugGift) {
+        window.__lovebugGift(kind);
+        setStatus(`Delivering ${kind} gift! Click on it to accept 🎁`);
+      }
+    }
+
+    function triggerToy(kind) {
+      chrome.storage.local.set({ triggerToyNow: Date.now() });
+      setStatus(`Playing with ${kind} toy! 🐾`);
+    }
+
+    function triggerPeekaboo() {
+      if (window.__lovebugPeekaboo) {
+        window.__lovebugPeekaboo();
+        setStatus('Playing peekaboo at screen edge! 🙈');
+      }
+    }
+
+    function triggerSay() {
+      if (window.__lovebugSay) {
+        const msgs = window.LOVEBUG_MESSAGES || [];
+        const msg = msgs[Math.floor(Math.random() * msgs.length)] || 'I love you!';
+        window.__lovebugSay(msg);
+        setStatus('Showing sweet love note! 💌');
+      }
+    }
+
+    function triggerWalk() {
+      const host = document.querySelector('little-lovebug');
+      setStatus('Kitten taking a stroll! 🚶');
+    }
+
+    let isAsleep = false;
+    function toggleSleep() {
+      isAsleep = !isAsleep;
+      chrome.storage.local.set({ sleeping: isAsleep });
+      setStatus(isAsleep ? 'Kitten is taking a cozy nap 💤' : 'Kitten woke up! ✨');
+    }
+  </script>
+</body>
+</html>
