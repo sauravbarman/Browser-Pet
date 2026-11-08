@@ -7,7 +7,7 @@
 ### *A tiny, original pixel-art kitten carrying a little extra love through your day.*
 
 [![Manifest V3](https://img.shields.io/badge/Chrome_Extension-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](manifest.json)
-[![Version](https://img.shields.io/badge/Version-1.3.2-F472B6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.3.3-F472B6?style=flat-square)](CHANGELOG.md)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-34D399?style=flat-square)]()
 [![100% Offline](https://img.shields.io/badge/Network-100%25_Offline-A78BFA?style=flat-square)]()
 [![Privacy First](https://img.shields.io/badge/Privacy-100%25_Local-FBBF24?style=flat-square)]()

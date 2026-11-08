@@ -104,7 +104,7 @@ if (btnToyNow) {
         toggle.checked = true;
         await chrome.storage.local.set({ hidden: false });
       }
-      await chrome.storage.local.set({ triggerToyNow: Date.now() });
+      await chrome.storage.local.set({ triggerToyNow: 'yarn' });
       status.textContent = 'Playtime started with kitten! 🐾';
     } catch {
       status.textContent = 'Could not start toy. Try again.';

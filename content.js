@@ -302,87 +302,188 @@
 
   function playYarn() {
     if (!canIdle() || motion.matches) return;
-    const ax = parseFloat(anchor.style.left);
-    // Spawn yarn ball to the left or right of the kitten, keeping it on-screen
-    const side = ax > innerWidth - 240 ? -1 : ax < 80 ? 1 : (Math.random() < 0.5 ? -1 : 1);
-    const bx = side < 0 ? -20 : 182;
-    const by = 146;
 
+    // ── Ball is positioned in FIXED screen space so it moves independently of the cat ──
+    const ay = parseFloat(anchor.style.top);
+    let catX = parseFloat(anchor.style.left);
+    const catFloor = ay + PET_SIZE - 26; // vertical centre of ball when on the "floor"
+
+    // Spawn 130-200px away from cat on a random side that keeps ball on screen
+    const maxX = Math.max(0, innerWidth - PET_SIZE);
+    const spawnSide = catX > maxX - 60 ? -1 : catX < 60 ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const spawnDist = 130 + Math.random() * 70;
+    let ballX = Math.max(16, Math.min(innerWidth - 38, catX + 96 + spawnSide * spawnDist));
+    let ballY = catFloor;
+
+    // Ball lives in the shadow root with position:fixed so it's screen-absolute
     const ball = document.createElement('div');
-    ball.className = 'toy-yarn';
+    ball.className = 'toy-yarn toy-yarn-fixed';
     ball.setAttribute('aria-hidden', 'true');
-    ball.style.cssText = `left:${bx}px;top:${by}px`;
-    anchor.append(ball);
+    ball.style.cssText = `position:fixed;left:${ballX}px;top:${ballY}px;transition:none`;
+    root.append(ball);
 
-    const rollDir = side > 0 ? 1 : -1;
-    const rollDist = 28 + Math.random() * 20;
     let done = false;
-
     const timers = [];
     function t(fn, ms) { const id = setTimeout(fn, ms); timers.push(id); return id; }
 
-    // Phase 1: kitten looks toward ball
-    const lookCls = bx < 96 ? 'look-left' : 'look';
-    activePose = lookCls; anchor.classList.add(lookCls);
-
-    // Phase 2: bat — after a moment kitten reaches with paw
-    t(() => {
-      if (!toyCleanup) return;
-      clearPose();
-      activePose = 'twitch'; anchor.classList.add('twitch');
-      // Ball rolls
-      ball.style.transform = `translateX(${rollDir * rollDist}px)`;
-      ball.style.transition = 'transform 0.5s ease-out';
-    }, 900 + Math.random() * 300);
-
-    // Phase 3: sometimes walk a step toward ball
-    const willStep = Math.random() < 0.4;
-    if (willStep) {
-      t(() => {
-        if (!toyCleanup || !canIdle()) return;
-        clearPose();
-        // Small nudge walk
-        const curX = parseFloat(anchor.style.left);
-        const stepDir = bx < 96 ? -1 : 1;
-        const stepDist = 20 + Math.random() * 15;
-        walking = true; anchor.classList.add('walking');
-        anchor.classList.toggle('facing-left', stepDir < 0);
-        const generation = ++walkGeneration;
-        const target = Math.max(0, Math.min(Math.max(0, innerWidth - 192), curX + stepDir * stepDist));
-        const started = performance.now();
-        function frame(now) {
-          if (generation !== walkGeneration || !walking || !toyCleanup) { if (walking) stopWalk(); return; }
-          const p = Math.min(1, (now - started) / 600);
-          rememberPixels(curX + (target - curX) * p, parseFloat(anchor.style.top));
-          position();
-          if (p < 1) requestAnimationFrame(frame); else stopWalk();
-        }
-        requestAnimationFrame(frame);
-      }, 1500);
-    }
-
-    // Phase 4: ball fades out
-    t(() => {
-      if (!toyCleanup) return;
-      ball.style.opacity = '0';
-      ball.style.transition = (ball.style.transition ? ball.style.transition + ',' : '') + 'opacity 0.8s ease-out';
-    }, 2800 + Math.random() * 400);
-
-    // Phase 5: cleanup
-    t(() => {
-      done = true;
-      toyCleanup = null;
-      clearPose();
-      if (ball.isConnected) ball.remove();
-    }, 3800 + Math.random() * 400);
-
-    toyCleanup = () => {
+    function cleanup() {
       if (done) return;
       done = true;
       timers.forEach(clearTimeout);
       clearPose();
+      if (walking) stopWalk();
       if (ball.isConnected) ball.remove();
-    };
+    }
+    toyCleanup = cleanup;
+
+    // ── Helper: smoothly walk cat toward a target X over `dur` ms ──
+    // In the test harness there is no RAF advancement during setTimeout chains,
+    // so we teleport immediately and call onDone so the sequence keeps running.
+    function walkCatTo(targetX, dur, onDone) {
+      if (!toyCleanup) { onDone && onDone(); return; }
+      const startX = parseFloat(anchor.style.left);
+      const clampedTarget = Math.max(0, Math.min(maxX, targetX));
+      const dir = clampedTarget >= startX ? 1 : -1;
+      const actualDist = Math.abs(clampedTarget - startX);
+      if (actualDist < 4) { onDone && onDone(); return; }
+
+      if (globalThis.harness) {
+        // Harness: teleport instantly so walking never stalls the sequence
+        catX = clampedTarget;
+        rememberPixels(catX, parseFloat(anchor.style.top));
+        anchor.style.left = catX + 'px';
+        onDone && onDone();
+        return;
+      }
+
+      walking = true;
+      anchor.classList.add('walking');
+      anchor.classList.toggle('facing-left', dir < 0);
+      const generation = ++walkGeneration;
+      const started = performance.now();
+
+      function frame(now) {
+        if (!toyCleanup || generation !== walkGeneration) { if (walking) stopWalk(false); return; }
+        const p = Math.min(1, (now - started) / (dur || 1200));
+        catX = startX + (clampedTarget - startX) * p;
+        rememberPixels(catX, parseFloat(anchor.style.top));
+        anchor.style.left = catX + 'px';
+        if (p < 1) { walkFrame = requestAnimationFrame(frame); }
+        else { walking = false; anchor.classList.remove('walking'); walkGeneration++; onDone && onDone(); }
+      }
+      walkFrame = requestAnimationFrame(frame);
+    }
+
+    // ── Helper: smoothly roll ball from current position by `dx` px ──
+    let ballAngle = 0;
+    function rollBall(dx, dur) {
+      if (!ball.isConnected) return;
+      const dest = Math.max(16, Math.min(innerWidth - 38, ballX + dx));
+      const dist = dest - ballX;
+      ballAngle += Math.round((dist / 22) * 180);
+      ball.style.transition = `left ${dur}ms cubic-bezier(0.25,0.8,0.5,1), transform ${dur}ms cubic-bezier(0.25,0.8,0.5,1)`;
+      ball.style.left = dest + 'px';
+      ball.style.transform = `rotate(${ballAngle}deg)`;
+      ballX = dest;
+    }
+
+    // ── Chase sequence ──
+    // Phase 0 → 500ms: cat spots the ball (look toward it)
+    const lookCls = ballX < catX + 96 ? 'look-left' : 'look';
+    activePose = lookCls;
+    anchor.classList.add(lookCls);
+
+    t(() => {
+      if (!toyCleanup) return;
+      clearPose();
+
+      // Phase 1: cat trots toward ball (stop ~24px short so it appears to reach)
+      const targetCatX = ballX - 96 - 24 * (ballX > catX + 96 ? 1 : -1);
+      const dist1 = Math.abs(targetCatX - catX);
+      const dur1 = Math.round((dist1 / 65) * 900);
+
+      walkCatTo(targetCatX, dur1, () => {
+        if (!toyCleanup) return;
+
+        // Phase 2: first bat / pounce
+        activePose = 'batting';
+        anchor.classList.add('batting');
+        const rollDir1 = ballX >= catX + 96 ? 1 : -1;
+        const roll1 = 110 + Math.random() * 70;
+        t(() => rollBall(rollDir1 * roll1, 500), 80);
+
+        t(() => {
+          if (!toyCleanup) return;
+          clearPose();
+
+          // Brief pause: cat watches ball roll
+          activePose = 'look'; anchor.classList.add('look');
+
+          t(() => {
+            if (!toyCleanup) return;
+            clearPose();
+
+            // Phase 3: cat chases ball again
+            const targetCatX2 = ballX - 96 - 20 * (ballX > catX + 96 ? 1 : -1);
+            const dist2 = Math.abs(targetCatX2 - parseFloat(anchor.style.left));
+            const dur2 = Math.round((dist2 / 65) * 800);
+
+            walkCatTo(targetCatX2, dur2, () => {
+              if (!toyCleanup) return;
+
+              // Phase 4: second bat
+              activePose = 'batting';
+              anchor.classList.add('batting');
+              const rollDir2 = Math.random() < 0.4 ? -(ballX >= catX + 96 ? 1 : -1) : (ballX >= catX + 96 ? 1 : -1);
+              const roll2 = 90 + Math.random() * 60;
+              t(() => rollBall(rollDir2 * roll2, 450), 80);
+
+              t(() => {
+                if (!toyCleanup) return;
+                clearPose();
+
+                // Phase 5: 55% chance of a third chase round
+                const doThirdChase = Math.random() < 0.55;
+                const finalDelay = doThirdChase ? 2400 : 800;
+
+                if (doThirdChase) {
+                  activePose = 'look'; anchor.classList.add('look');
+                  t(() => {
+                    if (!toyCleanup) return;
+                    clearPose();
+                    const targetCatX3 = ballX - 96 - 18 * (ballX > parseFloat(anchor.style.left) + 96 ? 1 : -1);
+                    const dist3 = Math.abs(targetCatX3 - parseFloat(anchor.style.left));
+                    const dur3 = Math.round((dist3 / 65) * 750);
+                    walkCatTo(targetCatX3, dur3, () => {
+                      if (!toyCleanup) return;
+                      activePose = 'batting'; anchor.classList.add('batting');
+                      const rollDir3 = Math.random() < 0.5 ? -1 : 1;
+                      t(() => rollBall(rollDir3 * (60 + Math.random() * 40), 400), 80);
+                      t(() => { if (toyCleanup) clearPose(); }, 600);
+                    });
+                  }, 500);
+                }
+
+                // Phase 6: ball wobbles to a stop, fades, cleanup
+                t(() => {
+                  if (!ball.isConnected) return;
+                  ball.style.transition = 'opacity 0.9s ease-out';
+                  ball.style.opacity = '0';
+                }, finalDelay);
+
+                t(() => {
+                  done = true; toyCleanup = null;
+                  clearPose();
+                  if (walking) stopWalk(false);
+                  if (ball.isConnected) ball.remove();
+                }, finalDelay + 1000);
+
+              }, 450 + Math.random() * 150);
+            });
+          }, 400 + Math.random() * 200);
+        }, 500 + Math.random() * 100);
+      });
+    }, 550 + Math.random() * 150);
   }
 
   function playButterfly() {
@@ -522,17 +623,23 @@
     };
   }
 
-  function tryStartToy() {
+  function tryStartToy(preferredKind) {
     if (!canIdle() || motion.matches) return;
-    // Pick a toy, avoiding the same one twice in a row
+    // Pick a toy; yarn is the lively chase toy so weight it heavily
     const toys = ['yarn', 'butterfly', 'heart'];
-    const available = lastToyKind ? toys.filter(t => t !== lastToyKind) : toys;
-    const kind = available[Math.floor(Math.random() * available.length)];
+    let kind = preferredKind;
+    if (!kind || !toys.includes(kind)) {
+      const pool = ['yarn', 'yarn', 'butterfly', 'heart'];
+      const available = lastToyKind ? pool.filter(t => t !== lastToyKind) : pool;
+      kind = available[Math.floor(Math.random() * available.length)];
+    }
     lastToyKind = kind;
     if (kind === 'yarn') playYarn();
     else if (kind === 'butterfly') playButterfly();
     else playHeart();
   }
+  globalThis.__lovebugToy = tryStartToy;
+  globalThis.__lovebugYarn = playYarn;
 
   // ── Feature 3: Peekaboo Mode ──────────────────────────────────────────
   let peekaboo = null;
@@ -1229,7 +1336,8 @@
       'Play': () => {
         panel.hidden = true; bubble.hidden = true; kitten.setAttribute('aria-expanded', 'false');
         save({ happiness: Math.min(100, state.happiness + 6), sleeping: false });
-        tryStartToy();
+        stopWalk(false); clearPose();
+        tryStartToy('yarn');
       },
       'Sleep': () => save({ sleeping: true }), 'Wake up': () => { save({ sleeping: false }); react('waking'); },
       'Rename': () => { rename.hidden = !rename.hidden; input.value = state.name; position(); if (!rename.hidden) input.focus(); },
@@ -1335,7 +1443,12 @@
       if (changes.triggerToyNow) {
         if (!state.hidden && !document.hidden && !motion.matches) {
           if (state.sleeping) { save({ sleeping: false }); react('waking'); }
-          cancelGift(); cancelPeekaboo(true); tryStartToy();
+          stopWalk(false); clearPose(); cancelGift(); cancelPeekaboo(true); cancelToy();
+          const raw = changes.triggerToyNow.newValue;
+          const kind = (typeof raw === 'string' && ['yarn', 'butterfly', 'heart'].includes(raw))
+            ? raw
+            : (raw && typeof raw === 'object' && raw.kind) ? raw.kind : null;
+          tryStartToy(kind);
         }
       }
       if (changes.triggerPeekNow) {

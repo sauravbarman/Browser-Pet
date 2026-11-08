@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2026-11-08
+
+### Added & Enhanced
+* **Dynamic Multi-Phase Yarn Chase Behavior**:
+  * Completely overhauled `playYarn()` into a realistic, multi-phase cat play sequence where the kitten actively runs and chases the rolling yarn ball across the screen.
+  * **Phase 1 (Spotting)**: Kitten spots the yarn ball dropped on the floor and perks up looking toward it.
+  * **Phase 2 (Trot & Bat)**: Kitten trots forward to catch up with the ball and gives it a playful front-paw swat (`.batting` pounce gesture).
+  * **Phase 3 (Roll & Chase)**: Yarn ball rolls 100–180px away with physical roll rotation (`transform: rotate(...)`); kitten immediately runs after it.
+  * **Phase 4 (Second Bat & Return)**: Kitten reaches the ball, swats it again with realistic bounce and return vectors.
+  * **Phase 5 (Bonus Chase Round)**: 55% chance of an additional energetic chase round before settling down.
+  * **Phase 6 (Slowing & Fade)**: Ball wobbles to a gentle stop on the floor and gently fades out.
+* **Realistic Yarn Ball Styling**:
+  * Enhanced `.toy-yarn` with a delicate woven wool texture (`radial-gradient` + cross-hatch fibers) and a trailing curled strand of unraveled yarn (`::after`).
+  * Spinning rotation dynamically calculated from roll distance so the ball visibly rolls along the floor.
+* **Instant & Prioritized Playtime**:
+  * Clicking **"🐾 Play"** in the extension popup or the kitten's care menu now immediately launches an active yarn ball chase session.
+  * Prioritized yarn ball chasing as the premier toy in autonomous idle play cycles.
+* **Interactive Playground Updates**:
+  * Updated `test.html` playground toy buttons so **🧶 Yarn**, **🦋 Butterfly**, and **🎈 Heart** trigger their respective toys on demand.
+
 ## [1.3.2] - 2026-11-08
 
 ### Fixed & Enhanced

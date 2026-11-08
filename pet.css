@@ -76,7 +76,17 @@
 
 /* Yarn ball: pastel pink circle with cross-hatch lines */
 .toy-yarn{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fbd0e0,#f4a7c0);box-shadow:0 1px 3px #d4749960;animation:toy-yarn-wobble 1.2s ease-in-out infinite}
+.toy-yarn::before{content:'';position:absolute;inset:1px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(255,255,255,0.7),transparent 55%),repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(235,120,160,0.3) 3px,rgba(235,120,160,0.3) 5px);pointer-events:none}
+.toy-yarn::after{content:'~';position:absolute;font-size:14px;line-height:1;font-weight:900;color:#f4a7c0;right:-6px;bottom:-2px;pointer-events:none;transform:rotate(-20deg)}
+/* Fixed-position variant lives on the shadow root, sits above everything */
+.toy-yarn-fixed{position:fixed!important;z-index:2147483646!important;pointer-events:none}
 @keyframes toy-yarn-wobble{0%,100%{transform:rotate(0deg)}50%{transform:rotate(8deg)}}
+
+/* Cat batting / pouncing gesture when swatting yarn ball */
+.batting .gesture{animation:sprite-bat .42s cubic-bezier(0.34, 1.56, 0.64, 1)}
+@keyframes sprite-bat{0%{transform:translateY(0) rotate(0)}40%{transform:translateY(-6px) translateX(6px) rotate(4deg) scale(1.05, 0.95)}70%{transform:translateY(2px) translateX(8px) rotate(-3deg)}100%{transform:translateY(0) translateX(0) rotate(0)}}
+.facing-left.batting .gesture{animation:sprite-bat-left .42s cubic-bezier(0.34, 1.56, 0.64, 1)}
+@keyframes sprite-bat-left{0%{transform:translateY(0) rotate(0)}40%{transform:translateY(-6px) translateX(-6px) rotate(-4deg) scale(1.05, 0.95)}70%{transform:translateY(2px) translateX(-8px) rotate(3deg)}100%{transform:translateY(0) translateX(0) rotate(0)}}
 
 /* Butterfly: two pastel wings using CSS clip-path shapes */
 .toy-butterfly{width:28px;height:20px;position:absolute;animation:toy-bf-flap 0.35s ease-in-out infinite alternate}
